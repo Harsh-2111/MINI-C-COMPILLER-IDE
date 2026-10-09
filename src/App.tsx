@@ -16,6 +16,7 @@ import { AboutModal } from './components/AboutModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ConsolePanel } from './components/ConsolePanel';
 import { OutputPanel } from './components/OutputPanel';
+import { LandingPage } from './components/LandingPage';
 import { ToastContainer, ToastItem } from './components/Toast';
 import { SAMPLE_PROGRAMS, getApiBase, setApiBase } from './config';
 import { compileCode, explainError, adviseOptimization, checkBackendHealth } from './api';
@@ -48,6 +49,8 @@ const THEME_STORAGE_KEY = 'compilescope_theme';
 const MOCK_STORAGE_KEY = 'compilescope_mock_mode';
 
 export default function App() {
+  const [showLandingPage, setShowLandingPage] = useState(true);
+
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -199,11 +202,6 @@ export default function App() {
   useEffect(() => {
     refreshBackendStatus();
   }, [refreshBackendStatus]);
-
-  // Initial compilation on mount
-  useEffect(() => {
-    handleCompile();
-  }, []);
 
   // Persist mock mode
   const handleToggleMockMode = (val: boolean) => {
@@ -443,6 +441,18 @@ export default function App() {
   const symbols = compileData?.symbols || [];
   const tac = compileData?.tac || [];
   const optimizedTac = compileData?.optimized_tac || [];
+
+  if (showLandingPage) {
+    return (
+      <LandingPage
+        onEnter={() => {
+          setShowLandingPage(false);
+          setActiveTab('output');
+          void handleCompile();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans">

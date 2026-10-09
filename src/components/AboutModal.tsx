@@ -34,7 +34,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                About CompileScope
+                About ByteBloom
               </h3>
               <p className="text-[11px] text-slate-500">Compiler Visualizer &amp; Mini-IDE</p>
             </div>
@@ -55,7 +55,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               Overview
             </h4>
             <p className="text-[12px] leading-relaxed text-slate-600 dark:text-slate-400">
-              CompileScope is an interactive compilation pipeline inspector and mini-IDE for custom C-like languages. It exposes every internal compiler transformation stage in real time, from raw source characters to optimized intermediate representations.
+              ByteBloom is an interactive compilation pipeline inspector and mini-IDE for custom C-like languages. It exposes every internal compiler transformation stage in real time, from raw source characters to optimized intermediate representations.
             </p>
           </div>
 

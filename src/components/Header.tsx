@@ -88,10 +88,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-slate-900 dark:text-slate-100 text-[13.5px] leading-tight tracking-tight">
-              CompileScope
+              ByteBloom
             </span>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">
-              Compiler Visualizer &amp; Mini-IDE
+              Visual Compiler Studio
             </span>
           </div>
         </div>

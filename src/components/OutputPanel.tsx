@@ -37,7 +37,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({ result }) => (
         </pre>
         <p className="mt-4 max-w-2xl font-sans text-xs leading-relaxed text-slate-500">
           {result.ok
-            ? 'This is the return value from running the program in CompileScope’s safe C-like interpreter.'
+            ? 'This is the return value from running the program in ByteBloom’s safe C-like interpreter.'
             : 'The source compiled, but execution could not complete. Check the message above and verify that the program uses supported language features.'}
         </p>
       </div>
