@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
 </div>
 
-# Run and deploy your AI Studio app
+# OptiLexis AI
 
 This contains everything you need to run your app locally.
 
@@ -22,7 +22,7 @@ View your app in AI Studio: https://ai.studio/apps/d4c0b5b9-9520-4bc7-b2dd-99390
 ## Compile and Run
 
 Click **Compile & Run** to compile the current program and execute the supported
-C-like subset in CompileScope's safe in-browser interpreter. The **Output** tab
+C-like subset in OptiLexis AI's safe in-browser interpreter. The **Output** tab
 opens automatically after a successful compile and displays the program's
 return value (for example, `30` for a `main` function that returns `x + y` when
 `x` is `10` and `y` is `20`). Programs with compilation errors are not executed.

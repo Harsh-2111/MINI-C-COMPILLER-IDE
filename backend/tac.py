@@ -1,4 +1,4 @@
-"""Three-address-code generation for the CompileScope AST."""
+"""Three-address-code generation for the OptiLexis AI AST."""
 
 from __future__ import annotations
 

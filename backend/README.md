@@ -1,6 +1,6 @@
-# CompileScope Backend
+# OptiLexis AI Backend
 
-FastAPI backend for the CompileScope visual compiler. It tokenizes source code,
+FastAPI backend for the OptiLexis AI visual compiler. It tokenizes source code,
 parses it into a serialized AST, checks semantic rules, generates
 three-address code (TAC), and optimizes that TAC. `/explain` and `/advise` use
 Gemini when configured, with deterministic local fallbacks when it is not.

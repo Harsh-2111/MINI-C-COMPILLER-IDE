@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowRight,
-  Braces,
   Check,
   Code2,
   GitFork,
   Layers3,
-  Play,
   Sparkles,
   Terminal,
   Workflow,
@@ -24,14 +21,24 @@ const loadingMessages = [
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
   const [progress, setProgress] = useState(0);
-  const ready = progress === 100;
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setProgress((current) => Math.min(100, current + 2));
+    let currentProgress = 0;
+    let launchTimer = 0;
+    const progressTimer = window.setInterval(() => {
+      currentProgress = Math.min(100, currentProgress + 2);
+      setProgress(currentProgress);
+
+      if (currentProgress === 100) {
+        window.clearInterval(progressTimer);
+        launchTimer = window.setTimeout(onEnter, 240);
+      }
     }, 32);
-    return () => window.clearInterval(timer);
-  }, []);
+    return () => {
+      window.clearInterval(progressTimer);
+      window.clearTimeout(launchTimer);
+    };
+  }, [onEnter]);
 
   const messageIndex = Math.min(
     loadingMessages.length - 1,
@@ -45,13 +52,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
 
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 sm:px-10">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-300/25 bg-blue-500/15 text-blue-300 shadow-lg shadow-blue-950/30">
-            <Braces className="h-5 w-5" />
+          <div className="h-11 w-11 overflow-hidden rounded-xl border border-amber-200/25 bg-amber-100/10 shadow-lg shadow-amber-950/20">
+            <img src="/logo-icon.png" alt="" className="h-full w-full object-contain p-0.5" />
           </div>
           <div>
-            <div className="text-base font-bold tracking-tight">ByteBloom</div>
+            <div className="text-base font-bold tracking-tight">OptiLexis AI</div>
             <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
-              Visual Compiler Studio
+              Visual Compiler &amp; Mini-IDE
             </div>
           </div>
         </div>
@@ -68,42 +75,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
             From source code to insight
           </div>
 
-          <h1 className="text-5xl font-semibold leading-[1.08] tracking-[-0.055em] text-white sm:text-6xl lg:text-[4.5rem]">
-            See the story
-            <br />
-            <span className="bg-gradient-to-r from-blue-300 via-cyan-200 to-teal-200 bg-clip-text text-transparent">
-              inside your code.
-            </span>
-          </h1>
+          <div className="relative mb-3 flex w-full max-w-md items-center justify-center sm:justify-start">
+            <div className="absolute inset-x-[12%] inset-y-[18%] rounded-full bg-amber-200/25 blur-3xl" />
+            <img
+              src="/logo.png"
+              alt="OptiLexis AI — Visual Compiler and Mini-IDE"
+              className="relative h-auto w-full drop-shadow-[0_0_24px_rgba(253,230,138,0.16)]"
+            />
+          </div>
 
           <p className="mt-6 max-w-xl text-base leading-7 text-slate-400 sm:text-lg sm:leading-8">
-            ByteBloom turns every compile into a visual journey. Explore tokens,
+            OptiLexis AI turns every compile into a visual journey. Explore tokens,
             syntax trees, symbols, intermediate code, optimizations—and the
             program’s result—in one welcoming workspace.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={onEnter}
-              disabled={!ready}
-              className="group inline-flex items-center gap-2.5 rounded-xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-blue-950/50 transition hover:-translate-y-0.5 hover:bg-blue-400 disabled:cursor-wait disabled:opacity-70"
-            >
-              {ready ? (
-                <>
-                  <Play className="h-4 w-4 fill-current" />
-                  Open the compiler
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </>
-              ) : (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
-                  Getting things ready
-                </>
-              )}
-            </button>
             <span className="text-xs text-slate-500">
-              A hands-on compiler lab, right in your browser
+              A hands-on compiler lab, opening in your browser
             </span>
           </div>
 
@@ -113,14 +102,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-800 text-blue-300">
                   <Workflow className="h-3.5 w-3.5" />
                 </span>
-                {ready ? 'Workspace ready' : loadingMessages[messageIndex]}
+                {progress === 100 ? 'Opening your workspace...' : loadingMessages[messageIndex]}
               </span>
               <span className="font-mono tabular-nums text-slate-500">{progress}%</span>
             </div>
             <div
               className="h-1.5 overflow-hidden rounded-full bg-slate-800"
               role="progressbar"
-              aria-label="Preparing ByteBloom workspace"
+              aria-label="Preparing OptiLexis AI workspace"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progress}
@@ -192,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
             </div>
             <div className="flex items-center justify-between border-t border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-[10px] text-slate-500">
               <span>5 stages. One clear view.</span>
-              <span className="font-mono">ByteBloom Studio</span>
+              <span className="font-mono">OptiLexis AI Studio</span>
             </div>
           </div>
           <div className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-xl border border-white/10 bg-slate-900/95 px-3 py-2 text-[11px] text-slate-300 shadow-xl sm:flex">
@@ -205,7 +194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       </section>
 
       <footer className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 pb-6 text-[10px] text-slate-600 sm:px-10">
-        <span>BYTEBLOOM · VISUAL COMPILER STUDIO</span>
+        <span>OPTILEXIS AI · VISUAL COMPILER &amp; MINI-IDE</span>
         <span>Built for curiosity and clear thinking.</span>
       </footer>
     </main>

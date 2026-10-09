@@ -441,17 +441,14 @@ export default function App() {
   const symbols = compileData?.symbols || [];
   const tac = compileData?.tac || [];
   const optimizedTac = compileData?.optimized_tac || [];
+  const handleOpenCompiler = useCallback(() => {
+    setShowLandingPage(false);
+    setActiveTab('output');
+    void handleCompile();
+  }, [handleCompile]);
 
   if (showLandingPage) {
-    return (
-      <LandingPage
-        onEnter={() => {
-          setShowLandingPage(false);
-          setActiveTab('output');
-          void handleCompile();
-        }}
-      />
-    );
+    return <LandingPage onEnter={handleOpenCompiler} />;
   }
 
   return (

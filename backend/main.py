@@ -1,4 +1,4 @@
-"""FastAPI service exposing the CompileScope compiler pipeline."""
+"""FastAPI service exposing the OptiLexis AI compiler pipeline."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ except ImportError:
     from semantic import analyze
     from tac import generate_tac
 
-app = FastAPI(title="CompileScope Compiler API", version="1.0.0")
+app = FastAPI(title="OptiLexis AI Compiler API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

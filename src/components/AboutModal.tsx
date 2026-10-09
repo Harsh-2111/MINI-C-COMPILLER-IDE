@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, X, Cpu, ArrowRight, Users, GitFork } from 'lucide-react';
+import { Info, X, ArrowRight, Users, GitFork } from 'lucide-react';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -29,12 +29,12 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white">
-              <Cpu className="w-4 h-4" />
+            <div className="w-7 h-7 overflow-hidden rounded-md border border-amber-200/30 bg-amber-100/10">
+              <img src="/logo-icon.png" alt="" className="h-full w-full object-contain p-0.5" />
             </div>
             <div>
               <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                About ByteBloom
+                About OptiLexis AI
               </h3>
               <p className="text-[11px] text-slate-500">Compiler Visualizer &amp; Mini-IDE</p>
             </div>
@@ -55,7 +55,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               Overview
             </h4>
             <p className="text-[12px] leading-relaxed text-slate-600 dark:text-slate-400">
-              ByteBloom is an interactive compilation pipeline inspector and mini-IDE for custom C-like languages. It exposes every internal compiler transformation stage in real time, from raw source characters to optimized intermediate representations.
+              OptiLexis AI is an interactive compilation pipeline inspector and mini-IDE for custom C-like languages. It exposes every internal compiler transformation stage in real time, from raw source characters to optimized intermediate representations.
             </p>
           </div>
 

@@ -1,4 +1,4 @@
-"""PLY parser for the CompileScope mini language."""
+"""PLY parser for the OptiLexis AI mini language."""
 
 import ply.lex as lex
 import ply.yacc as yacc

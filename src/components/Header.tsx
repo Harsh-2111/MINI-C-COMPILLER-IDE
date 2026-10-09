@@ -5,7 +5,6 @@ import {
   Play,
   Sparkles,
   ChevronDown,
-  Cpu,
   Settings,
   HelpCircle,
   Sun,
@@ -83,15 +82,15 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-4">
         {/* Logo and Wordmark */}
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white shrink-0">
-            <Cpu className="w-4 h-4" />
+          <div className="w-8 h-8 overflow-hidden rounded-lg border border-amber-200/30 bg-amber-100/10 shrink-0">
+            <img src="/logo-icon.png" alt="" className="h-full w-full object-contain p-0.5" />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-slate-900 dark:text-slate-100 text-[13.5px] leading-tight tracking-tight">
-              ByteBloom
+              OptiLexis AI
             </span>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">
-              Visual Compiler Studio
+              Visual Compiler &amp; Mini-IDE
             </span>
           </div>
         </div>

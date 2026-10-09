@@ -1,4 +1,4 @@
-"""Live local integration checks for the CompileScope compiler API."""
+"""Live local integration checks for the OptiLexis AI compiler API."""
 
 from pathlib import Path
 

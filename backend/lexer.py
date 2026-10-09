@@ -1,4 +1,4 @@
-"""PLY-based lexer for the CompileScope mini language."""
+"""PLY-based lexer for the OptiLexis AI mini language."""
 
 import ply.lex as lex
 
