@@ -15,9 +15,11 @@ import { LanguageReferenceDrawer } from './components/LanguageReferenceDrawer';
 import { AboutModal } from './components/AboutModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ConsolePanel } from './components/ConsolePanel';
+import { OutputPanel } from './components/OutputPanel';
 import { ToastContainer, ToastItem } from './components/Toast';
 import { SAMPLE_PROGRAMS, getApiBase, setApiBase } from './config';
 import { compileCode, explainError, adviseOptimization, checkBackendHealth } from './api';
+import { ExecutionResult, runProgram } from './runtime';
 import {
   CompileResponse,
   CompilerError,
@@ -34,9 +36,10 @@ import {
   Binary,
   Zap,
   AlertTriangle,
+  Terminal,
 } from 'lucide-react';
 
-type TabKey = 'tokens' | 'ast' | 'symbols' | 'tac' | 'optimization' | 'errors';
+type TabKey = 'output' | 'tokens' | 'ast' | 'symbols' | 'tac' | 'optimization' | 'errors';
 
 const FILES_STORAGE_KEY = 'compilescope_files';
 const ACTIVE_FILE_KEY = 'compilescope_active_file_id';
@@ -104,6 +107,7 @@ export default function App() {
   const code = activeFile ? activeFile.code : '';
 
   const setCode = (newCode: string) => {
+    setExecutionResult(null);
     setFiles((prev) =>
       prev.map((f) => (f.id === activeFileId ? { ...f, code: newCode } : f))
     );
@@ -120,6 +124,7 @@ export default function App() {
   const [compileStatus, setCompileStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [timeTakenMs, setTimeTakenMs] = useState<number | null>(null);
   const [compileData, setCompileData] = useState<CompileResponse | null>(null);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
   // Editor cursor & selection tracking
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
@@ -210,6 +215,7 @@ export default function App() {
   // Compile Handler
   const handleCompile = useCallback(async () => {
     setIsCompiling(true);
+    setExecutionResult(null);
     const startTime = performance.now();
     const filename = activeFile ? activeFile.filename : 'main.c';
 
@@ -236,6 +242,7 @@ export default function App() {
       }
 
       if (result.errors && result.errors.length > 0) {
+        setExecutionResult(null);
         setCompileStatus('error');
         result.errors.forEach((err) => {
           addConsoleLog(`Error [${err.phase.toUpperCase()}] Line ${err.line}: ${err.message}`, 'error');
@@ -246,7 +253,16 @@ export default function App() {
         setActiveTab('errors');
       } else {
         setCompileStatus('success');
+        const programResult = runProgram(code);
+        setExecutionResult(programResult);
+        setActiveTab('output');
         addConsoleLog(`Compilation succeeded in ${elapsed.toFixed(0)}ms (0 errors)`, 'success');
+        addConsoleLog(
+          programResult.ok
+            ? `Program returned: ${programResult.value}`
+            : `Program execution stopped: ${programResult.value}`,
+          programResult.ok ? 'success' : 'warn'
+        );
         addToast('Compilation succeeded (0 errors)', 'success');
       }
     } catch (err: unknown) {
@@ -488,7 +504,20 @@ export default function App() {
           {/* Tab Navigation */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 select-none overflow-x-auto shrink-0">
             <div className="flex items-center gap-1 py-1">
-              {/* Tab: Tokens */}
+                {/* Tab: Program Output */}
+                <button
+                  onClick={() => setActiveTab('output')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
+                    activeTab === 'output'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-800'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>Output</span>
+                </button>
+
+                {/* Tab: Tokens */}
               <button
                 onClick={() => setActiveTab('tokens')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
@@ -594,6 +623,8 @@ export default function App() {
 
           {/* Panel Body */}
           <div className="flex-1 overflow-hidden relative">
+            {activeTab === 'output' && <OutputPanel result={executionResult} />}
+
             {activeTab === 'tokens' && (
               <TokensPanel tokens={tokens} onSelectLine={setSelectedLine} isLoading={isCompiling} />
             )}

@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
       </div>
 
-      {/* Center: Compile, Explain, Sample Select */}
+      {/* Center: Compile & Run, Explain, Sample Select */}
       <div className="flex items-center gap-2">
         {/* Sample Program dropdown */}
         <div className="relative">
@@ -166,19 +166,19 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Compile Primary Button */}
+        {/* Compile and run the current program */}
         <button
           onClick={onCompile}
           disabled={isCompiling}
           className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-md shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
-          title="Compile (Ctrl+Enter / ⌘+Enter)"
+          title="Compile and run (Ctrl+Enter / ⌘+Enter)"
         >
           {isCompiling ? (
             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Play className="w-3.5 h-3.5 fill-current" />
           )}
-          <span>{isCompiling ? 'Compiling' : 'Compile'}</span>
+          <span>{isCompiling ? 'Compiling' : 'Compile & Run'}</span>
         </button>
 
         {/* Explain with AI Button */}
