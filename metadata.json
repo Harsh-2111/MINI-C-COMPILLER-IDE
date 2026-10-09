@@ -1,0 +1,6 @@
+{
+  "name": "AI Visual Compiler & Mini-IDE",
+  "description": "Interactive compiler design IDE featuring visual lexical analysis, AST graph tree, symbol table, TAC intermediate code generator, dead code/constant folding optimization diff, and AI error diagnostic fixes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
