@@ -71,6 +71,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
           </div>
         </div>
       </section>
+      <footer className="absolute inset-x-0 bottom-5 z-10 px-4 text-center text-[11px] tracking-wide text-slate-500/80">
+        © {new Date().getFullYear()} OptiLexis AI. All rights reserved.
+      </footer>
     </main>
   );
 };

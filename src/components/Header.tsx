@@ -63,16 +63,16 @@ export const Header: React.FC<HeaderProps> = ({
   const statusDot = getStatusDot();
 
   return (
-    <header className="relative z-20 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-3 py-2 select-none sm:px-4">
+    <header className="relative z-20 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-3 py-2 select-none shadow-sm sm:px-4 md:min-h-16 md:px-5 md:py-3 lg:min-h-[4.5rem]">
       {/* Left: Wordmark & Nav Links */}
       <div className="flex items-center gap-4">
         {/* Logo and Wordmark */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-amber-200/30 bg-amber-100/10 sm:h-11 sm:w-11">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-amber-200/30 bg-amber-100/10 shadow-sm sm:h-11 sm:w-11 md:h-12 md:w-12">
             <img src="/logo-icon.png" alt="" className="h-full w-full object-contain p-0.5" />
           </div>
           <div className="flex min-w-0 flex-col">
-            <span className="text-base font-bold leading-tight tracking-tight text-slate-900 sm:text-lg">
+            <span className="text-base font-bold leading-tight tracking-tight text-slate-900 sm:text-lg md:text-xl">
               OptiLexis AI
             </span>
             <span className="hidden text-[10px] leading-none text-slate-500 sm:block">
@@ -84,25 +84,25 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="hidden md:block w-px h-5 bg-slate-200 dark:bg-slate-800 mx-1" />
 
         {/* Nav Links */}
-        <nav className="hidden md:flex items-center gap-1 text-xs">
+        <nav className="hidden items-center gap-1 text-sm md:flex">
           <button
             onClick={() => {}}
-            className="px-2.5 py-1 font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 rounded transition-colors"
+            className="rounded px-3 py-2 font-semibold text-blue-600 transition-colors hover:bg-blue-100"
           >
             Editor
           </button>
           <button
             onClick={onOpenReference}
-            className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-2 rounded px-3 py-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
           >
-            <BookOpen className="w-3.5 h-3.5" />
+            <BookOpen className="h-4 w-4" />
             <span>Language Reference</span>
           </button>
           <button
             onClick={onOpenAbout}
-            className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-2 rounded px-3 py-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
           >
-            <Info className="w-3.5 h-3.5" />
+            <Info className="h-4 w-4" />
             <span>About</span>
           </button>
         </nav>
