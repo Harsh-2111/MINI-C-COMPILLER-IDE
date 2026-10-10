@@ -2,15 +2,12 @@ import React, { useEffect, useState } from 'react';
 
 interface LandingPageProps {
   onEnter: () => void;
-  autoEnter?: boolean;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onEnter, autoEnter = true }) => {
-  const [progress, setProgress] = useState(autoEnter ? 0 : 100);
+export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (!autoEnter) return;
-
     let currentProgress = 0;
     let launchTimer = 0;
     const progressTimer = window.setInterval(() => {
@@ -27,7 +24,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter, autoEnter = t
       window.clearInterval(progressTimer);
       window.clearTimeout(launchTimer);
     };
-  }, [autoEnter, onEnter]);
+  }, [onEnter]);
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#07111f] px-6 text-slate-100">
@@ -58,30 +55,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter, autoEnter = t
         <h1 className="text-4xl font-bold tracking-tight drop-shadow-[0_2px_18px_rgba(34,211,238,0.16)] sm:text-5xl">
           OptiLexis AI
         </h1>
-        {autoEnter ? (
-          <div className="w-full max-w-md rounded-full border border-white/[0.07] bg-slate-900/70 p-1.5 shadow-[0_12px_44px_rgba(0,0,0,0.3)] backdrop-blur">
-            <div
-              className="h-3 overflow-hidden rounded-full bg-slate-800/90"
-              role="progressbar"
-              aria-label="Loading OptiLexis AI"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-            >
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-teal-300 shadow-[0_0_16px_rgba(45,212,191,0.35)] transition-[width] duration-200 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={onEnter}
-            className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-6 py-3 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-300/20"
+        <div className="w-full max-w-md rounded-full border border-white/[0.07] bg-slate-900/70 p-1.5 shadow-[0_12px_44px_rgba(0,0,0,0.3)] backdrop-blur">
+          <div
+            className="h-3 overflow-hidden rounded-full bg-slate-800/90"
+            role="progressbar"
+            aria-label="Loading OptiLexis AI"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
           >
-            Enter Workspace
-          </button>
-        )}
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-teal-300 shadow-[0_0_16px_rgba(45,212,191,0.35)] transition-[width] duration-200 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
       </section>
       <footer className="absolute inset-x-0 bottom-5 z-10 px-4 text-center text-[11px] tracking-wide text-slate-500/80">
         © {new Date().getFullYear()} OptiLexis AI. All rights reserved.

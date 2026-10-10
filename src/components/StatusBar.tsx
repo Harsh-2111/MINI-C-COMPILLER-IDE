@@ -12,8 +12,6 @@ interface StatusBarProps {
   timeTakenMs: number | null;
   cursorPos: { line: number; col: number };
   tokenCount: number;
-  isMockMode: boolean;
-  backendOnline: boolean | null;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -22,8 +20,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   timeTakenMs,
   cursorPos,
   tokenCount,
-  isMockMode,
-  backendOnline,
 }) => {
   return (
     <footer className="grid min-h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 bg-blue-600 px-2 py-1 font-mono text-[10px] leading-tight tracking-tight text-white select-none sm:flex sm:h-6 sm:min-h-0 sm:items-center sm:justify-between sm:px-3 sm:py-0 sm:text-[11px]">

@@ -10,7 +10,6 @@ import { OptimizationDiff } from './components/OptimizationDiff';
 import { ErrorsPanel } from './components/ErrorsPanel';
 import { ExplainModal } from './components/ExplainModal';
 import { AdviseModal } from './components/AdviseModal';
-import { SettingsModal } from './components/SettingsModal';
 import { LanguageReferenceDrawer } from './components/LanguageReferenceDrawer';
 import { AboutModal } from './components/AboutModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
@@ -18,8 +17,8 @@ import { ConsolePanel } from './components/ConsolePanel';
 import { OutputPanel } from './components/OutputPanel';
 import { LandingPage } from './components/LandingPage';
 import { ToastContainer, ToastItem } from './components/Toast';
-import { SAMPLE_PROGRAMS, getApiBase, setApiBase } from './config';
-import { compileCode, explainError, adviseOptimization, checkBackendHealth } from './api';
+import { SAMPLE_PROGRAMS, getApiBase } from './config';
+import { compileCode, explainError, adviseOptimization } from './api';
 import { ExecutionResult, runProgram } from './runtime';
 import {
   CompileResponse,
@@ -42,28 +41,34 @@ import {
 
 type TabKey = 'output' | 'tokens' | 'ast' | 'symbols' | 'tac' | 'optimization' | 'errors';
 
-const FILES_STORAGE_KEY = 'compilescope_files';
-const ACTIVE_FILE_KEY = 'compilescope_active_file_id';
-const SPLIT_WIDTH_KEY = 'compilescope_split_width';
-const MOCK_STORAGE_KEY = 'compilescope_mock_mode';
-const APP_VIEW_KEY = 'compilescope_app_view';
+const FILES_STORAGE_KEY = 'optilexis_session_files';
+const ACTIVE_FILE_KEY = 'optilexis_session_active_file_id';
+const SPLIT_WIDTH_KEY = 'optilexis_session_split_width';
+const APP_VIEW_KEY = 'optilexis_session_app_view';
+const STARTER_CODE = `// Online C compiler (editor)
+// Write and run code online using this editor.
+
+#include <stdio.h>
+
+int main() {
+    printf("Try clicking the Run button.");
+    return 0;
+}
+`;
 
 export default function App() {
   const [showLandingPage, setShowLandingPage] = useState(
-    () => typeof window === 'undefined' || localStorage.getItem(APP_VIEW_KEY) !== 'workspace'
-  );
-  const [isLogoutLanding, setIsLogoutLanding] = useState(
-    () => typeof window !== 'undefined' && localStorage.getItem(APP_VIEW_KEY) === 'logged-out'
+    () => typeof window === 'undefined' || sessionStorage.getItem(APP_VIEW_KEY) !== 'workspace'
   );
 
   useEffect(() => {
     document.documentElement.classList.remove('dark');
   }, []);
 
-  // File Tabs state (persisted in localStorage)
+  // File tabs are scoped to this browser tab and survive refreshes.
   const [files, setFiles] = useState<EditorTabFile[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(FILES_STORAGE_KEY);
+      const saved = sessionStorage.getItem(FILES_STORAGE_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -73,41 +78,44 @@ export default function App() {
     }
     return [
       {
-        id: 'file-test1',
-        filename: 'test1.c',
-        code: '',
+        id: 'file-main',
+        filename: 'main.c',
+        code: STARTER_CODE,
       },
     ];
   });
 
   const [activeFileId, setActiveFileId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(ACTIVE_FILE_KEY);
+      const saved = sessionStorage.getItem(ACTIVE_FILE_KEY);
       if (saved) return saved;
     }
-    return 'file-test1';
+    return 'file-main';
   });
 
   useEffect(() => {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
+    sessionStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
   }, [files]);
 
   useEffect(() => {
-    localStorage.setItem(ACTIVE_FILE_KEY, activeFileId);
+    sessionStorage.setItem(ACTIVE_FILE_KEY, activeFileId);
   }, [activeFileId]);
 
   const activeFile = files.find((f) => f.id === activeFileId) || files[0];
   const code = activeFile ? activeFile.code : '';
 
   const setCode = (newCode: string) => {
+    setCompileData(null);
     setExecutionResult(null);
+    setCompileStatus('idle');
+    setTimeTakenMs(null);
     setFiles((prev) =>
       prev.map((f) => (f.id === activeFileId ? { ...f, code: newCode } : f))
     );
   };
 
   // Sample Selection
-  const [selectedSample, setSelectedSample] = useState<SampleProgram>(SAMPLE_PROGRAMS[0]);
+  const [selectedSampleId, setSelectedSampleId] = useState('');
 
   // Active Output Tab
   const [activeTab, setActiveTab] = useState<TabKey>('tokens');
@@ -123,20 +131,11 @@ export default function App() {
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
 
-  // Mock Mode and Backend connection
-  const [isMockMode, setIsMockMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(MOCK_STORAGE_KEY);
-      return saved === null ? true : saved === 'true';
-    }
-    return true;
-  });
+  const isMockMode = true;
 
-  const [apiBaseUrl, setApiBaseUrl] = useState<string>(getApiBase());
-  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const apiBaseUrl = getApiBase();
 
   // Modals & Drawers
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -157,11 +156,12 @@ export default function App() {
 
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const lastToastRef = useRef<{ key: string; timestamp: number } | null>(null);
 
   // Resizable Split percentage
   const [leftWidthPercent, setLeftWidthPercent] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(SPLIT_WIDTH_KEY);
+      const saved = sessionStorage.getItem(SPLIT_WIDTH_KEY);
       if (saved) {
         const val = parseFloat(saved);
         if (!isNaN(val) && val >= 25 && val <= 75) return val;
@@ -172,6 +172,12 @@ export default function App() {
   const isDraggingRef = useRef(false);
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const key = `${type}:${message}`;
+    const now = Date.now();
+    if (lastToastRef.current?.key === key && now - lastToastRef.current.timestamp < 2200) {
+      return;
+    }
+    lastToastRef.current = { key, timestamp: now };
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, message }]);
   }, []);
@@ -182,23 +188,6 @@ export default function App() {
     const id = `log-${Date.now()}-${Math.random()}`;
     setConsoleLogs((prev) => [...prev, { id, timestamp, level, message }]);
   }, []);
-
-  // Health check
-  const refreshBackendStatus = useCallback(async () => {
-    const online = await checkBackendHealth(apiBaseUrl);
-    setBackendOnline(online);
-  }, [apiBaseUrl]);
-
-  useEffect(() => {
-    refreshBackendStatus();
-  }, [refreshBackendStatus]);
-
-  // Persist mock mode
-  const handleToggleMockMode = (val: boolean) => {
-    setIsMockMode(val);
-    localStorage.setItem(MOCK_STORAGE_KEY, String(val));
-    addToast(val ? 'Switched to Mock Compiler Mode' : 'Switched to Live Backend API', 'info');
-  };
 
   // Compile Handler
   const handleCompile = useCallback(async (sourceCode = code) => {
@@ -385,17 +374,18 @@ export default function App() {
   };
 
   const handleSelectSample = (sample: SampleProgram) => {
-    setSelectedSample(sample);
+    setSelectedSampleId(sample.id);
     setCode(sample.code);
     setSelectedLine(null);
     addToast(`Loaded sample: ${sample.name}`, 'info');
     addConsoleLog(`Loaded sample program: ${sample.name}`, 'info');
-    void handleCompile(sample.code);
   };
 
-  const handleResetToSample = () => {
-    setCode(selectedSample.code);
-    addToast(`Reset code to sample: ${selectedSample.name}`, 'info');
+  const handleResetToStarter = () => {
+    setSelectedSampleId('');
+    setCode(STARTER_CODE);
+    setSelectedLine(null);
+    addToast('Restored starter code', 'info');
   };
 
   // Resizable split handler
@@ -412,7 +402,7 @@ export default function App() {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false;
-      localStorage.setItem(SPLIT_WIDTH_KEY, String(leftWidthPercent));
+      sessionStorage.setItem(SPLIT_WIDTH_KEY, String(leftWidthPercent));
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -428,21 +418,13 @@ export default function App() {
   const tac = compileData?.tac || [];
   const optimizedTac = compileData?.optimized_tac || [];
   const handleOpenCompiler = useCallback(() => {
-    localStorage.setItem(APP_VIEW_KEY, 'workspace');
+    sessionStorage.setItem(APP_VIEW_KEY, 'workspace');
     setShowLandingPage(false);
-    setIsLogoutLanding(false);
     setActiveTab('output');
-    void handleCompile();
-  }, [handleCompile]);
-
-  const handleLogout = useCallback(() => {
-    localStorage.setItem(APP_VIEW_KEY, 'logged-out');
-    setIsLogoutLanding(true);
-    setShowLandingPage(true);
   }, []);
 
   if (showLandingPage) {
-    return <LandingPage onEnter={handleOpenCompiler} autoEnter={!isLogoutLanding} />;
+    return <LandingPage onEnter={handleOpenCompiler} />;
   }
 
   return (
@@ -451,14 +433,10 @@ export default function App() {
         onCompile={() => void handleCompile()}
         isCompiling={isCompiling}
         onSelectSample={handleSelectSample}
-        selectedSampleId={selectedSample.id}
-        isMockMode={isMockMode}
-        backendOnline={backendOnline}
-        onOpenSettings={() => setSettingsOpen(true)}
+        selectedSampleId={selectedSampleId}
         onOpenHelp={() => setHelpOpen(true)}
         onOpenReference={() => setReferenceOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
-        onLogout={handleLogout}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto md:flex-row md:overflow-hidden">
@@ -480,7 +458,7 @@ export default function App() {
             onSelectLine={setSelectedLine}
             onCursorChange={(line, col) => setCursorPos({ line, col })}
             onFormat={handleFormatCode}
-            onResetSample={handleResetToSample}
+            onResetSample={handleResetToStarter}
             onNotify={addToast}
           />
         </div>
@@ -661,8 +639,6 @@ export default function App() {
         timeTakenMs={timeTakenMs}
         cursorPos={cursorPos}
         tokenCount={tokens.length}
-        isMockMode={isMockMode}
-        backendOnline={backendOnline}
       />
 
       <ExplainModal
@@ -682,28 +658,12 @@ export default function App() {
         onSelectLine={setSelectedLine}
       />
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        apiBase={apiBaseUrl}
-        onUpdateApiBase={(url) => {
-          setApiBaseUrl(url);
-          setApiBase(url);
-          refreshBackendStatus();
-        }}
-        isMockMode={isMockMode}
-        onToggleMockMode={handleToggleMockMode}
-        backendOnline={backendOnline}
-        onRefreshBackendStatus={refreshBackendStatus}
-      />
-
       <LanguageReferenceDrawer
         isOpen={referenceOpen}
         onClose={() => setReferenceOpen(false)}
         onLoadExample={(exCode) => {
           setCode(exCode);
           addToast('Loaded reference example into editor', 'info');
-          void handleCompile(exCode);
         }}
       />
 

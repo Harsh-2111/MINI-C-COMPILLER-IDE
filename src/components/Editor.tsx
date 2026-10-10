@@ -210,7 +210,7 @@ export const Editor: React.FC<EditorProps> = ({
           <button
             onClick={onResetSample}
             className="flex items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 sm:py-0.5"
-            title="Reset to Sample Program"
+            title="Reset to Starter Code"
           >
             <RotateCcw className="w-3 h-3" />
             <span className="hidden sm:inline text-[11px]">Reset</span>

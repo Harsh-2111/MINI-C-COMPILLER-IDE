@@ -9,7 +9,6 @@ import {
   Code2,
   BookOpen,
   Info,
-  LogOut,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,13 +16,9 @@ interface HeaderProps {
   isCompiling: boolean;
   onSelectSample: (sample: SampleProgram) => void;
   selectedSampleId: string;
-  isMockMode: boolean;
-  backendOnline: boolean | null;
-  onOpenSettings: () => void;
   onOpenHelp: () => void;
   onOpenReference: () => void;
   onOpenAbout: () => void;
-  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,39 +26,13 @@ export const Header: React.FC<HeaderProps> = ({
   isCompiling,
   onSelectSample,
   selectedSampleId,
-  isMockMode,
-  backendOnline,
-  onOpenSettings,
   onOpenHelp,
   onOpenReference,
   onOpenAbout,
-  onLogout,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const currentSample = SAMPLE_PROGRAMS.find((s) => s.id === selectedSampleId);
-
-  // Status dot determination
-  const getStatusDot = () => {
-    if (isMockMode) {
-      return {
-        color: 'bg-slate-400',
-        tooltip: 'In-browser compiler active. Click to open compiler settings.',
-      };
-    }
-    if (backendOnline === true) {
-      return {
-        color: 'bg-emerald-500',
-        tooltip: 'Compiler backend connected. Click to open compiler settings.',
-      };
-    }
-    return {
-      color: 'bg-rose-500',
-      tooltip: 'Compiler backend unreachable. Click to open compiler settings.',
-    };
-  };
-
-  const statusDot = getStatusDot();
 
   return (
     <header className="relative z-20 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-2 border-b border-slate-200 bg-white px-3 py-2 select-none shadow-sm sm:px-4 md:flex md:min-h-16 md:flex-wrap md:items-center md:justify-between md:gap-x-2 md:gap-y-1 md:px-5 md:py-3 lg:min-h-[4.5rem]">
@@ -172,30 +141,11 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1 sm:gap-1.5 md:col-auto md:row-auto">
         <button
-          onClick={onOpenSettings}
-          className="flex h-9 w-7 items-center justify-center rounded transition-colors hover:bg-slate-100"
-          title={statusDot.tooltip}
-          aria-label={statusDot.tooltip}
-        >
-          <span className={`h-2.5 w-2.5 rounded-full ${statusDot.color}`} />
-        </button>
-
-        <button
           onClick={onOpenHelp}
           className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           title="Keyboard Shortcuts & Reference"
         >
           <HelpCircle className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-1 rounded px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
-          title="Return to landing page"
-          aria-label="Logout and return to landing page"
-        >
-          <LogOut className="h-4 w-4" />
-          <span>Logout</span>
         </button>
       </div>
     </header>
