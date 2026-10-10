@@ -24,26 +24,23 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({ result }) => (
     </div>
     {result ? (
       <div className="p-4">
-        <div className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">
-          {result.ok ? 'Return value' : 'Runtime error'}
-        </div>
         <pre
           role="status"
           className={`whitespace-pre-wrap break-words text-lg ${
             result.ok ? 'font-semibold text-emerald-300' : 'text-rose-300'
           }`}
         >
-          {result.value}
+          {result.ok && result.output ? result.output : result.value}
         </pre>
-        <p className="mt-4 max-w-2xl font-sans text-xs leading-relaxed text-slate-500">
-          {result.ok
-            ? 'This is the return value from running the program in OptiLexis AI’s safe C-like interpreter.'
-            : 'The source compiled, but execution could not complete. Check the message above and verify that the program uses supported language features.'}
-        </p>
+        {!result.ok && (
+          <p className="mt-4 max-w-2xl font-sans text-xs leading-relaxed text-slate-500">
+            The source compiled, but execution could not complete. Check the message above and verify that the program uses supported language features.
+          </p>
+        )}
       </div>
     ) : (
       <div className="flex flex-1 items-center justify-center p-6 text-center font-sans text-xs text-slate-500">
-        Compile &amp; Run a valid program to see its return value here.
+        Compile &amp; Run your program to see its output here.
       </div>
     )}
   </div>

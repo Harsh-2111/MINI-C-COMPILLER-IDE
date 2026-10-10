@@ -1,4 +1,4 @@
-type Value = number | boolean | undefined;
+type Value = number | boolean | string | undefined;
 
 type Expression =
   | { kind: 'literal'; value: Value }
@@ -158,6 +158,9 @@ class SourceParser {
     if (this.match('false')) return { kind: 'literal', value: false };
 
     const token = this.advance();
+    if (token.value.startsWith('"')) {
+      return { kind: 'literal', value: JSON.parse(token.value) as string };
+    }
     if (/^\d+(?:\.\d+)?$/.test(token.value)) {
       return { kind: 'literal', value: Number(token.value) };
     }
@@ -234,6 +237,7 @@ class SourceParser {
 class ProgramRunner {
   private readonly functions: Map<string, FunctionDefinition>;
   private readonly scopes: Map<string, Value>[] = [];
+  private readonly output: string[] = [];
   private callDepth = 0;
   private steps = 0;
 
@@ -246,6 +250,10 @@ class ProgramRunner {
       throw new Error("No 'main' function was found to run");
     }
     return this.callFunction('main', []);
+  }
+
+  getOutput(): string {
+    return this.output.join('');
   }
 
   private callFunction(name: string, args: Value[]): Value {
@@ -341,6 +349,9 @@ class ProgramRunner {
       case 'identifier':
         return this.lookup(expression.name);
       case 'call':
+        if (expression.name === 'printf') {
+          return this.print(expression.arguments.map((argument) => this.evaluate(argument)));
+        }
         return this.callFunction(
           expression.name,
           expression.arguments.map((argument) => this.evaluate(argument))
@@ -411,11 +422,54 @@ class ProgramRunner {
     }
     return value;
   }
+
+  private print(argumentsList: Value[]): number {
+    const format = argumentsList[0];
+    if (typeof format !== 'string') {
+      throw new Error('printf expects a string format as its first argument');
+    }
+
+    let argumentIndex = 1;
+    const text = format.replace(/%%|%[diufcs]/g, (specifier) => {
+      if (specifier === '%%') return '%';
+
+      const value = argumentsList[argumentIndex];
+      argumentIndex += 1;
+      if (value === undefined) {
+        throw new Error(`printf is missing a value for '${specifier}'`);
+      }
+
+      switch (specifier) {
+        case '%d':
+        case '%i':
+        case '%u':
+          if (typeof value !== 'number') {
+            throw new Error(`printf '${specifier}' expects a numeric value`);
+          }
+          return String(Math.trunc(value));
+        case '%f':
+          if (typeof value !== 'number') {
+            throw new Error("printf '%f' expects a numeric value");
+          }
+          return String(value);
+        case '%c':
+          return typeof value === 'number' ? String.fromCharCode(value) : String(value).charAt(0);
+        case '%s':
+          return String(value);
+        default:
+          return specifier;
+      }
+    });
+
+    this.output.push(text);
+    return text.length;
+  }
 }
 
 export interface ExecutionResult {
   ok: boolean;
   value: string;
+  output?: string;
   error?: string;
 }
 
@@ -423,10 +477,12 @@ export function runProgram(source: string): ExecutionResult {
   try {
     const parser = new SourceParser(source);
     parser.parseProgram();
-    const result = new ProgramRunner(parser.functions).run();
+    const runner = new ProgramRunner(parser.functions);
+    const result = runner.run();
     return {
       ok: true,
       value: result === undefined ? 'Program finished without a return value.' : String(result),
+      output: runner.getOutput(),
     };
   } catch (error: unknown) {
     return {
@@ -440,11 +496,17 @@ export function runProgram(source: string): ExecutionResult {
 function tokenize(source: string): Token[] {
   const cleaned = source
     .replace(/^\s*#include\s+[<"][^>\n"]+[>"]\s*$/gm, '')
-    .replace(/\/\/[^\n]*/g, '');
+    .replace(/\/\*[\s\S]*?\*\//g, '');
   const tokens: Token[] = [];
-  const matcher = /\s+|(?:\d+(?:\.\d+)?)|(?:[A-Za-z_]\w*)|(?:==|!=|<=|>=|&&|\|\|)|[{}(),;+\-*/%<>=!]/gy;
+  const matcher = /"(?:\\.|[^"\\])*"|\s+|(?:\d+(?:\.\d+)?)|(?:[A-Za-z_]\w*)|(?:==|!=|<=|>=|&&|\|\|)|[{}(),;+\-*/%<>=!]/gy;
   let offset = 0;
   while (offset < cleaned.length) {
+    if (cleaned.startsWith('//', offset)) {
+      const newline = cleaned.indexOf('\n', offset);
+      offset = newline === -1 ? cleaned.length : newline + 1;
+      continue;
+    }
+
     matcher.lastIndex = offset;
     const match = matcher.exec(cleaned);
     if (!match) {
