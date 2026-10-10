@@ -46,9 +46,15 @@ const FILES_STORAGE_KEY = 'compilescope_files';
 const ACTIVE_FILE_KEY = 'compilescope_active_file_id';
 const SPLIT_WIDTH_KEY = 'compilescope_split_width';
 const MOCK_STORAGE_KEY = 'compilescope_mock_mode';
+const APP_VIEW_KEY = 'compilescope_app_view';
 
 export default function App() {
-  const [showLandingPage, setShowLandingPage] = useState(true);
+  const [showLandingPage, setShowLandingPage] = useState(
+    () => typeof window === 'undefined' || localStorage.getItem(APP_VIEW_KEY) !== 'workspace'
+  );
+  const [isLogoutLanding, setIsLogoutLanding] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem(APP_VIEW_KEY) === 'logged-out'
+  );
 
   useEffect(() => {
     document.documentElement.classList.remove('dark');
@@ -67,9 +73,9 @@ export default function App() {
     }
     return [
       {
-        id: 'file-main',
-        filename: 'main.c',
-        code: SAMPLE_PROGRAMS[0].code,
+        id: 'file-test1',
+        filename: 'test1.c',
+        code: '',
       },
     ];
   });
@@ -79,7 +85,7 @@ export default function App() {
       const saved = localStorage.getItem(ACTIVE_FILE_KEY);
       if (saved) return saved;
     }
-    return 'file-main';
+    return 'file-test1';
   });
 
   useEffect(() => {
@@ -422,13 +428,21 @@ export default function App() {
   const tac = compileData?.tac || [];
   const optimizedTac = compileData?.optimized_tac || [];
   const handleOpenCompiler = useCallback(() => {
+    localStorage.setItem(APP_VIEW_KEY, 'workspace');
     setShowLandingPage(false);
+    setIsLogoutLanding(false);
     setActiveTab('output');
     void handleCompile();
   }, [handleCompile]);
 
+  const handleLogout = useCallback(() => {
+    localStorage.setItem(APP_VIEW_KEY, 'logged-out');
+    setIsLogoutLanding(true);
+    setShowLandingPage(true);
+  }, []);
+
   if (showLandingPage) {
-    return <LandingPage onEnter={handleOpenCompiler} />;
+    return <LandingPage onEnter={handleOpenCompiler} autoEnter={!isLogoutLanding} />;
   }
 
   return (
@@ -444,6 +458,7 @@ export default function App() {
         onOpenHelp={() => setHelpOpen(true)}
         onOpenReference={() => setReferenceOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
+        onLogout={handleLogout}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto md:flex-row md:overflow-hidden">

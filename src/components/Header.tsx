@@ -9,6 +9,7 @@ import {
   Code2,
   BookOpen,
   Info,
+  LogOut,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,6 +23,7 @@ interface HeaderProps {
   onOpenHelp: () => void;
   onOpenReference: () => void;
   onOpenAbout: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   onOpenReference,
   onOpenAbout,
+  onLogout,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -183,6 +186,16 @@ export const Header: React.FC<HeaderProps> = ({
           title="Keyboard Shortcuts & Reference"
         >
           <HelpCircle className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-1 rounded px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          title="Return to landing page"
+          aria-label="Logout and return to landing page"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
         </button>
       </div>
     </header>
