@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -45,9 +45,10 @@ const AstCustomNode: React.FC<NodeProps> = ({ data, selected }) => {
 
   return (
     <div
-      className={`relative px-2.5 py-1.5 rounded border text-center transition-all cursor-pointer min-w-[120px] max-w-[190px] ${getNodeColor(
+      className={`relative min-w-[145px] max-w-[185px] rounded-lg border px-3 py-2.5 text-center shadow-sm transition-all cursor-pointer ${getNodeColor(
         data.type
       )} ${selected ? 'ring-2 ring-blue-600 shadow-sm' : ''}`}
+      title={`${data.type}: ${data.label}`}
     >
       <Handle
         type="target"
@@ -55,12 +56,12 @@ const AstCustomNode: React.FC<NodeProps> = ({ data, selected }) => {
         className="w-1.5 h-1.5 bg-slate-400 border border-white"
       />
 
-      <div className="flex items-center justify-between gap-1 text-[9.5px] uppercase font-semibold opacity-70">
+      <div className="flex items-center justify-between gap-2 text-[13px] font-semibold uppercase opacity-75">
         <span className="truncate">{data.type}</span>
         {data.line && <span className="font-mono">L{data.line}</span>}
       </div>
 
-      <div className="font-mono text-xs font-bold truncate text-slate-900 mt-0.5">
+      <div className="mt-1 break-words font-mono text-[22px] font-bold leading-7 text-slate-900">
         {data.label}
       </div>
 
@@ -83,12 +84,12 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
 
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 35,
-    ranksep: 50,
+    nodesep: 14,
+    ranksep: 52,
   });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 140, height: 50 });
+    dagreGraph.setNode(node.id, { width: 155, height: 96 });
   });
 
   edges.forEach((edge) => {
@@ -102,8 +103,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - 70,
-        y: nodeWithPosition.y - 25,
+        x: nodeWithPosition.x - 77.5,
+        y: nodeWithPosition.y - 48,
       },
     };
   });
@@ -160,6 +161,7 @@ const AstGraphInner: React.FC<AstGraphProps> = ({ ast, onSelectLine, isLoading }
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNodeData, setSelectedNodeData] = useState<any | null>(null);
   const reactFlowInstance = useReactFlow();
+  const graphContainerRef = useRef<HTMLDivElement>(null);
 
   const relayout = useCallback(() => {
     if (!ast) return;
@@ -173,13 +175,32 @@ const AstGraphInner: React.FC<AstGraphProps> = ({ ast, onSelectLine, isLoading }
     setEdges(layoutedEdges);
 
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2 });
+      reactFlowInstance.fitView({ padding: 0.1 });
     }, 50);
   }, [ast, reactFlowInstance, setNodes, setEdges]);
 
   useEffect(() => {
     relayout();
   }, [ast, relayout]);
+
+  useEffect(() => {
+    const container = graphContainerRef.current;
+    if (!container) return;
+
+    let animationFrame = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        reactFlowInstance.fitView({ padding: 0.1 });
+      });
+    });
+
+    resizeObserver.observe(container);
+    return () => {
+      resizeObserver.disconnect();
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [ast, reactFlowInstance]);
 
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedNodeData(node.data);
@@ -206,7 +227,7 @@ const AstGraphInner: React.FC<AstGraphProps> = ({ ast, onSelectLine, isLoading }
   }
 
   return (
-    <div className="relative w-full h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div ref={graphContainerRef} className="absolute inset-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* Controls Bar */}
       <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 shadow-2xs">
         <button
@@ -224,7 +245,7 @@ const AstGraphInner: React.FC<AstGraphProps> = ({ ast, onSelectLine, isLoading }
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={() => reactFlowInstance.fitView({ padding: 0.2 })}
+          onClick={() => reactFlowInstance.fitView({ padding: 0.1 })}
           className="p-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded"
           title="Fit View"
         >
@@ -290,7 +311,7 @@ const AstGraphInner: React.FC<AstGraphProps> = ({ ast, onSelectLine, isLoading }
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.1 }}
         minZoom={0.2}
         maxZoom={2}
       />

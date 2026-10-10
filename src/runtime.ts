@@ -438,7 +438,9 @@ export function runProgram(source: string): ExecutionResult {
 }
 
 function tokenize(source: string): Token[] {
-  const cleaned = source.replace(/\/\/[^\n]*/g, '');
+  const cleaned = source
+    .replace(/^\s*#include\s+[<"][^>\n"]+[>"]\s*$/gm, '')
+    .replace(/\/\/[^\n]*/g, '');
   const tokens: Token[] = [];
   const matcher = /\s+|(?:\d+(?:\.\d+)?)|(?:[A-Za-z_]\w*)|(?:==|!=|<=|>=|&&|\|\|)|[{}(),;+\-*/%<>=!]/gy;
   let offset = 0;

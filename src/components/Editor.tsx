@@ -28,7 +28,6 @@ interface EditorProps {
   onCursorChange?: (line: number, col: number) => void;
   onFormat: () => void;
   onResetSample: () => void;
-  isDarkMode: boolean;
   onNotify: (msg: string, type?: 'success' | 'info') => void;
 }
 
@@ -46,7 +45,6 @@ export const Editor: React.FC<EditorProps> = ({
   onCursorChange,
   onFormat,
   onResetSample,
-  isDarkMode,
   onNotify,
 }) => {
   const editorRef = useRef<MonacoEditorType.IStandaloneCodeEditor | null>(null);
@@ -225,7 +223,7 @@ export const Editor: React.FC<EditorProps> = ({
         <MonacoEditor
           height="100%"
           language="c"
-          theme={isDarkMode ? 'vs-dark' : 'vs'}
+          theme="vs"
           value={code}
           onChange={(val) => onChange(val || '')}
           onMount={handleEditorDidMount}

@@ -43,50 +43,50 @@ export const ConsolePanel: React.FC<ConsolePanelProps> = ({
   const getLevelStyle = (level: string) => {
     switch (level) {
       case 'error':
-        return 'text-rose-400 bg-rose-950/40 border-rose-900/60';
+        return 'border-rose-200 bg-rose-50 text-rose-700';
       case 'warn':
-        return 'text-amber-300 bg-amber-950/40 border-amber-900/60';
+        return 'border-amber-200 bg-amber-50 text-amber-700';
       case 'success':
-        return 'text-emerald-400 bg-emerald-950/40 border-emerald-900/60';
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700';
       default:
-        return 'text-slate-300 bg-slate-900 border-slate-800';
+        return 'border-slate-200 bg-slate-50 text-slate-700';
     }
   };
 
   const getLevelIcon = (level: string) => {
     switch (level) {
       case 'error':
-        return <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />;
+        return <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-600 mt-0.5" />;
       case 'success':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />;
+        return <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 mt-0.5" />;
       default:
-        return <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />;
+        return <Info className="w-3.5 h-3.5 shrink-0 text-blue-600 mt-0.5" />;
     }
   };
 
   const errorCount = logs.filter((l) => l.level === 'error').length;
 
   return (
-    <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-950 text-slate-200 text-xs font-mono select-none flex flex-col transition-all">
+    <div className="flex flex-col border-t border-slate-200 bg-white font-mono text-xs text-slate-700 transition-all select-none">
       {/* Console Header Bar */}
-      <div className="h-8 px-3 flex items-center justify-between bg-slate-900 border-b border-slate-800">
+      <div className="flex h-8 items-center justify-between border-b border-slate-200 bg-slate-100 px-3">
         <div
           onClick={onToggle}
-          className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors py-1"
+          className="flex cursor-pointer items-center gap-2 py-1 transition-colors hover:text-slate-950"
         >
           {isOpen ? (
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
           ) : (
-            <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
           )}
-          <Terminal className="w-3.5 h-3.5 text-blue-400" />
-          <span className="font-semibold text-slate-200">Console</span>
+          <Terminal className="w-3.5 h-3.5 text-blue-600" />
+          <span className="font-semibold text-slate-800">Console</span>
           {errorCount > 0 ? (
             <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
               {errorCount} {errorCount === 1 ? 'error' : 'errors'}
             </span>
           ) : (
-            <span className="text-[10px] text-slate-500 font-sans">({logs.length} entries)</span>
+            <span className="font-sans text-[10px] text-slate-500">({logs.length} entries)</span>
           )}
         </div>
 
@@ -100,8 +100,8 @@ export const ConsolePanel: React.FC<ConsolePanelProps> = ({
                   onClick={() => setFilterLevel(lvl)}
                   className={`px-2 py-0.5 rounded transition-colors capitalize ${
                     filterLevel === lvl
-                      ? 'bg-slate-800 text-white font-medium'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-blue-600 font-medium text-white'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {lvl}
@@ -109,11 +109,11 @@ export const ConsolePanel: React.FC<ConsolePanelProps> = ({
               ))}
             </div>
 
-            <div className="w-px h-3.5 bg-slate-800" />
+            <div className="h-3.5 w-px bg-slate-300" />
 
             <button
               onClick={onClear}
-              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors"
+              className="flex items-center gap-1 text-[11px] text-slate-500 transition-colors hover:text-slate-900"
               title="Clear Console"
             >
               <Trash2 className="w-3 h-3" />
@@ -127,19 +127,19 @@ export const ConsolePanel: React.FC<ConsolePanelProps> = ({
       {isOpen && (
         <div
           ref={scrollRef}
-          className="h-36 overflow-y-auto p-2.5 space-y-1 bg-slate-950 font-mono text-[11.5px]"
+          className="h-36 space-y-1 overflow-y-auto bg-white p-2.5 font-mono text-[11.5px]"
         >
           {filteredLogs.length === 0 ? (
-            <div className="text-slate-600 italic py-2 px-1">
+            <div className="px-1 py-2 italic text-slate-500">
               Console is empty. Build pipeline messages will appear here.
             </div>
           ) : (
             filteredLogs.map((log) => (
               <div
                 key={log.id}
-                className="flex items-start gap-2 leading-relaxed px-1.5 py-0.5 rounded hover:bg-slate-900/50"
+                className="flex items-start gap-2 rounded px-1.5 py-0.5 leading-relaxed hover:bg-slate-50"
               >
-                <span className="text-slate-600 select-none text-[10.5px] shrink-0 font-mono">
+                <span className="shrink-0 font-mono text-[10.5px] text-slate-400 select-none">
                   [{log.timestamp}]
                 </span>
                 {getLevelIcon(log.level)}

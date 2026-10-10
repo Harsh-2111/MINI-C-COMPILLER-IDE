@@ -45,30 +45,14 @@ type TabKey = 'output' | 'tokens' | 'ast' | 'symbols' | 'tac' | 'optimization' |
 const FILES_STORAGE_KEY = 'compilescope_files';
 const ACTIVE_FILE_KEY = 'compilescope_active_file_id';
 const SPLIT_WIDTH_KEY = 'compilescope_split_width';
-const THEME_STORAGE_KEY = 'compilescope_theme';
 const MOCK_STORAGE_KEY = 'compilescope_mock_mode';
 
 export default function App() {
   const [showLandingPage, setShowLandingPage] = useState(true);
 
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved === 'dark';
-    }
-    return false;
-  });
-
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem(THEME_STORAGE_KEY, 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem(THEME_STORAGE_KEY, 'light');
-    }
-  }, [isDarkMode]);
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   // File Tabs state (persisted in localStorage)
   const [files, setFiles] = useState<EditorTabFile[]>(() => {
@@ -177,7 +161,7 @@ export default function App() {
         if (!isNaN(val) && val >= 25 && val <= 75) return val;
       }
     }
-    return 46;
+    return 40;
   });
   const isDraggingRef = useRef(false);
 
@@ -211,7 +195,7 @@ export default function App() {
   };
 
   // Compile Handler
-  const handleCompile = useCallback(async () => {
+  const handleCompile = useCallback(async (sourceCode = code) => {
     setIsCompiling(true);
     setExecutionResult(null);
     const startTime = performance.now();
@@ -220,7 +204,7 @@ export default function App() {
     addConsoleLog(`Build started: ${filename}`, 'info');
 
     try {
-      const result = await compileCode(code, isMockMode, apiBaseUrl);
+      const result = await compileCode(sourceCode, isMockMode, apiBaseUrl);
       const elapsed = performance.now() - startTime;
       setTimeTakenMs(elapsed);
       setCompileData(result);
@@ -251,7 +235,7 @@ export default function App() {
         setActiveTab('errors');
       } else {
         setCompileStatus('success');
-        const programResult = runProgram(code);
+        const programResult = runProgram(sourceCode);
         setExecutionResult(programResult);
         setActiveTab('output');
         addConsoleLog(`Compilation succeeded in ${elapsed.toFixed(0)}ms (0 errors)`, 'success');
@@ -347,11 +331,9 @@ export default function App() {
   // Apply fix from AI (replaces editor code with fixed_code only)
   const handleApplyFix = (fixedCode: string) => {
     setCode(fixedCode);
-    addToast('Fix applied to source editor', 'success');
-    addConsoleLog('Applied automated AI syntax fix to editor', 'info');
-    setTimeout(() => {
-      handleCompile();
-    }, 150);
+    addToast('Fix applied; recompiling source', 'success');
+    addConsoleLog('Applied automated AI fix and started a fresh compile', 'info');
+    void handleCompile(fixedCode);
   };
 
   // Code formatting utility
@@ -380,7 +362,7 @@ export default function App() {
     const newFile: EditorTabFile = {
       id: `file-${Date.now()}`,
       filename: `test${newIndex}.c`,
-      code: `int compute() {\n    int a = 10;\n    int b = 20;\n    return a + b;\n}\n`,
+      code: `#include <stdio.h>\n\nint main() {\n}\n`,
     };
     setFiles((prev) => [...prev, newFile]);
     setActiveFileId(newFile.id);
@@ -402,9 +384,7 @@ export default function App() {
     setSelectedLine(null);
     addToast(`Loaded sample: ${sample.name}`, 'info');
     addConsoleLog(`Loaded sample program: ${sample.name}`, 'info');
-    setTimeout(() => {
-      handleCompile();
-    }, 100);
+    void handleCompile(sample.code);
   };
 
   const handleResetToSample = () => {
@@ -452,13 +432,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans">
-      {/* 1. HEADER */}
+    <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-800 md:h-dvh md:w-screen md:overflow-hidden">
       <Header
-        onCompile={handleCompile}
-        onExplain={handleExplainGlobal}
+        onCompile={() => void handleCompile()}
         isCompiling={isCompiling}
-        isExplaining={isExplaining || isAdvising}
         onSelectSample={handleSelectSample}
         selectedSampleId={selectedSample.id}
         isMockMode={isMockMode}
@@ -467,17 +444,12 @@ export default function App() {
         onOpenHelp={() => setHelpOpen(true)}
         onOpenReference={() => setReferenceOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode((prev) => !prev)}
-        hasErrors={errors.length > 0}
       />
 
-      {/* 2. MAIN WORKSPACE (SPLIT VIEW) */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        {/* LEFT: Monaco Editor */}
+      <div className="relative flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
         <div
           style={{ width: `${leftWidthPercent}%` }}
-          className="h-1/2 md:h-full flex flex-col shrink-0 min-w-[300px] w-full md:w-auto"
+          className="editor-pane flex h-[55dvh] min-h-[320px] w-full shrink-0 flex-col md:h-full md:min-h-0 md:min-w-0 md:w-auto"
         >
           <Editor
             files={files}
@@ -494,23 +466,20 @@ export default function App() {
             onCursorChange={(line, col) => setCursorPos({ line, col })}
             onFormat={handleFormatCode}
             onResetSample={handleResetToSample}
-            isDarkMode={isDarkMode}
             onNotify={addToast}
           />
         </div>
 
-        {/* Resizable Split Divider (Hidden on small screens) */}
         <div
           onMouseDown={handleMouseDownResize}
-          className="hidden md:flex w-1 hover:w-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-blue-500 cursor-col-resize select-none transition-all items-center justify-center shrink-0 z-10"
+          className="z-10 hidden w-1 shrink-0 cursor-col-resize select-none items-center justify-center bg-slate-200 transition-all hover:w-1.5 hover:bg-blue-500 md:flex"
           title="Drag to resize panels"
         />
 
-        {/* RIGHT: Tabbed Compiler Output Panels */}
-        <div className="flex-1 h-1/2 md:h-full flex flex-col bg-white dark:bg-slate-900 overflow-hidden min-w-[320px]">
+        <div className="flex h-[60dvh] min-h-[420px] min-w-0 flex-none flex-col overflow-hidden bg-white md:h-full md:min-h-0 md:flex-1">
           {/* Tab Navigation */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 select-none overflow-x-auto shrink-0">
-            <div className="flex items-center gap-1 py-1">
+          <div className="shrink-0 select-none overflow-x-auto border-b border-slate-200 bg-slate-50 px-2">
+            <div className="flex w-max items-center gap-1 py-1">
                 {/* Tab: Program Output */}
                 <button
                   onClick={() => setActiveTab('output')}
@@ -664,7 +633,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* 3. COLLAPSIBLE CONSOLE PANEL */}
       <ConsolePanel
         logs={consoleLogs}
         onClear={() => setConsoleLogs([])}
@@ -672,7 +640,6 @@ export default function App() {
         onToggle={() => setConsoleOpen((prev) => !prev)}
       />
 
-      {/* 4. STATUS BAR */}
       <StatusBar
         compileStatus={compileStatus}
         errorCount={errors.length}
@@ -683,7 +650,6 @@ export default function App() {
         backendOnline={backendOnline}
       />
 
-      {/* 5. MODALS & DRAWERS */}
       <ExplainModal
         isOpen={explainModalOpen}
         onClose={() => setExplainModalOpen(false)}
@@ -722,7 +688,7 @@ export default function App() {
         onLoadExample={(exCode) => {
           setCode(exCode);
           addToast('Loaded reference example into editor', 'info');
-          setTimeout(() => handleCompile(), 100);
+          void handleCompile(exCode);
         }}
       />
 
@@ -730,7 +696,6 @@ export default function App() {
 
       <ShortcutsModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
 
-      {/* 6. TOAST NOTIFICATIONS */}
       <ToastContainer
         toasts={toasts}
         onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}

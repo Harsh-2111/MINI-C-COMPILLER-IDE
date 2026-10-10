@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Sparkles,
   CheckCircle2,
-  Check,
   RefreshCw,
   Wrench,
   FileCode2,
@@ -30,7 +29,6 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
   const [explainingIndex, setExplainingIndex] = useState<number | null>(null);
   const [explanations, setExplanations] = useState<Record<number, ExplainResponse>>({});
   const [filterPhase, setFilterPhase] = useState<string>('all');
-  const [appliedIndex, setAppliedIndex] = useState<number | null>(null);
 
   const getPhaseBadge = (phase: string) => {
     switch (phase.toLowerCase()) {
@@ -59,8 +57,11 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
 
   const handleApply = (index: number, fixedCode: string) => {
     onApplyFix(fixedCode);
-    setAppliedIndex(index);
-    setTimeout(() => setAppliedIndex(null), 2000);
+    setExplanations((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
 
   const filteredErrors = errors.filter(
@@ -115,7 +116,6 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
         {filteredErrors.map((error, index) => {
           const explanationData = explanations[index];
           const isExplaining = explainingIndex === index;
-          const isApplied = appliedIndex === index;
 
           return (
             <div
@@ -171,23 +171,10 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
 
                     <button
                       onClick={() => handleApply(index, explanationData.fixed_code)}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded transition-colors ${
-                        isApplied
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-                      }`}
+                      className="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700"
                     >
-                      {isApplied ? (
-                        <>
-                          <Check className="w-3 h-3" />
-                          <span>Applied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Wrench className="w-3 h-3" />
-                          <span>Apply Fix to Code</span>
-                        </>
-                      )}
+                      <Wrench className="w-3 h-3" />
+                      <span>Apply Fix to Code</span>
                     </button>
                   </div>
 

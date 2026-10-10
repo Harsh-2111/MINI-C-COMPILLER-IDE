@@ -14,7 +14,7 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-10 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-50 flex max-w-sm flex-col gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4">
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
@@ -29,7 +29,7 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss(toast.id);
-    }, 3500);
+    }, 2200);
     return () => clearTimeout(timer);
   }, [toast.id, onDismiss]);
 

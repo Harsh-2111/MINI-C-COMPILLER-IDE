@@ -120,7 +120,9 @@ export const TokensPanel: React.FC<TokensPanelProps> = ({
                 title={`Type: ${token.type} | Value: "${token.value}" | Line: ${token.line} (Click to jump)`}
                 className={`flex items-center gap-1 px-2 py-0.5 text-xs rounded border transition-colors cursor-pointer font-mono ${style}`}
               >
-                <span className="font-semibold">{token.value}</span>
+                <span className="font-semibold">
+                  {filterType === 'all' ? `<${token.type}, ${token.value}>` : token.value}
+                </span>
                 <span className="text-[10px] opacity-60">L{token.line}</span>
               </div>
             );

@@ -16,6 +16,14 @@ def test_basic_tokens():
     ]
 
 
+def test_include_directive_is_ignored_and_keeps_source_line_numbers():
+    tokens, errors = tokenize("#include <stdio.h>\nint main() { return 0; }")
+
+    assert errors == []
+    assert all(token["line"] == 2 for token in tokens)
+    assert tokens[0] == {"type": "keyword", "value": "int", "line": 2}
+
+
 def test_all_keywords_and_identifier_categories():
     source = "int float bool void if else while return true false _name name2"
     tokens, errors = tokenize(source)

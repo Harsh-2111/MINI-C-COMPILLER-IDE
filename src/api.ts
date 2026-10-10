@@ -181,7 +181,13 @@ function generateMockCompileResponse(code: string): CompileResponse {
   lines.forEach((lineText, idx) => {
     const lineNum = idx + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('//')) return;
+    if (
+      !trimmed ||
+      trimmed.startsWith('//') ||
+      /^#include\s+[<"][^>\n"]+[>"]$/.test(trimmed)
+    ) {
+      return;
+    }
 
     // Check lexical error: invalid character like @ or # or $
     if (lineText.includes('@') || lineText.includes('$') || (lineText.includes('#') && !trimmed.startsWith('#include'))) {

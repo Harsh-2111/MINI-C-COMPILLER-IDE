@@ -38,6 +38,7 @@ tokens = (
     "RBRACE",
     "COMMA",
     "SEMICOLON",
+    "PREPROCESSOR",
 )
 
 reserved = {
@@ -99,6 +100,11 @@ def t_NUMBER(token):
 
 def t_COMMENT(token):
     r"//[^\n]*"
+    pass
+
+
+def t_PREPROCESSOR(token):
+    r'\#[ \t]*include[ \t]+(?:<[^>\n]+>|"[^"\n]+")'
     pass
 
 

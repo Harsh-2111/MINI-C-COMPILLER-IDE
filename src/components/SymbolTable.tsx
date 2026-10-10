@@ -102,7 +102,6 @@ export const SymbolTable: React.FC<SymbolTableProps> = ({
               <th className="py-2 px-3 font-mono">Name</th>
               <th className="py-2 px-3">Type</th>
               <th className="py-2 px-3">Scope</th>
-              <th className="py-2 px-3 font-mono">Offset</th>
               <th className="py-2 px-3">Line</th>
             </tr>
           </thead>
@@ -124,7 +123,6 @@ export const SymbolTable: React.FC<SymbolTableProps> = ({
                     {item.scope}
                   </span>
                 </td>
-                <td className="py-2 px-3 text-slate-500 font-mono">+{item.offset}B</td>
                 <td className="py-2 px-3 text-slate-500">L{item.line}</td>
               </tr>
             ))}
