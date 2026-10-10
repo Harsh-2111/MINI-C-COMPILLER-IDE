@@ -137,8 +137,8 @@ export const Editor: React.FC<EditorProps> = ({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
       {/* File Tabs Bar */}
-      <div className="flex items-center justify-between px-2 bg-slate-100/80 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 select-none overflow-x-auto">
-        <div className="flex items-center gap-1 py-1">
+      <div className="flex min-w-0 shrink-0 flex-col bg-slate-100/80 px-2 select-none sm:flex-row sm:items-center sm:justify-between sm:overflow-x-auto">
+        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto py-1">
           {files.map((file) => {
             const isActive = file.id === activeFileId;
             return (
@@ -179,10 +179,10 @@ export const Editor: React.FC<EditorProps> = ({
         </div>
 
         {/* Editor Quick Actions Toolbar */}
-        <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-slate-200 py-1 text-xs text-slate-600 sm:justify-start sm:border-0 sm:py-0">
           <button
             onClick={onFormat}
-            className="px-2 py-0.5 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
+            className="flex items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 sm:py-0.5"
             title="Format Code (Alt+F)"
           >
             <AlignLeft className="w-3 h-3" />
@@ -191,7 +191,7 @@ export const Editor: React.FC<EditorProps> = ({
 
           <button
             onClick={handleCopyCode}
-            className="px-2 py-0.5 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
+            className="flex items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 sm:py-0.5"
             title="Copy Source"
           >
             {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -200,7 +200,7 @@ export const Editor: React.FC<EditorProps> = ({
 
           <button
             onClick={handleClearCode}
-            className="px-2 py-0.5 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
+            className="flex items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 sm:py-0.5"
             title="Clear Editor"
           >
             <Trash2 className="w-3 h-3" />
@@ -209,7 +209,7 @@ export const Editor: React.FC<EditorProps> = ({
 
           <button
             onClick={onResetSample}
-            className="px-2 py-0.5 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
+            className="flex items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 sm:py-0.5"
             title="Reset to Sample Program"
           >
             <RotateCcw className="w-3 h-3" />

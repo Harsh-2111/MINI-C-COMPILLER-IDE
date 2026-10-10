@@ -432,7 +432,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-800 md:h-dvh md:w-screen md:overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 font-sans text-slate-800 md:w-screen">
       <Header
         onCompile={() => void handleCompile()}
         isCompiling={isCompiling}
@@ -446,10 +446,10 @@ export default function App() {
         onOpenAbout={() => setAboutOpen(true)}
       />
 
-      <div className="relative flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto md:flex-row md:overflow-hidden">
         <div
           style={{ width: `${leftWidthPercent}%` }}
-          className="editor-pane flex h-[55dvh] min-h-[320px] w-full shrink-0 flex-col md:h-full md:min-h-0 md:min-w-0 md:w-auto"
+          className="editor-pane flex h-[34dvh] min-h-[240px] w-full shrink-0 flex-col md:h-full md:min-h-0 md:min-w-0 md:w-auto"
         >
           <Editor
             files={files}
@@ -476,7 +476,7 @@ export default function App() {
           title="Drag to resize panels"
         />
 
-        <div className="flex h-[60dvh] min-h-[420px] min-w-0 flex-none flex-col overflow-hidden bg-white md:h-full md:min-h-0 md:flex-1">
+        <div className="flex h-[34dvh] min-h-[250px] min-w-0 flex-none flex-col overflow-hidden bg-white md:h-full md:min-h-0 md:flex-1">
           {/* Tab Navigation */}
           <div className="shrink-0 select-none overflow-x-auto border-b border-slate-200 bg-slate-50 px-2">
             <div className="flex w-max items-center gap-1 py-1">

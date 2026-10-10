@@ -63,9 +63,9 @@ export const Header: React.FC<HeaderProps> = ({
   const statusDot = getStatusDot();
 
   return (
-    <header className="relative z-20 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-3 py-2 select-none shadow-sm sm:px-4 md:min-h-16 md:px-5 md:py-3 lg:min-h-[4.5rem]">
+    <header className="relative z-20 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-2 border-b border-slate-200 bg-white px-3 py-2 select-none shadow-sm sm:px-4 md:flex md:min-h-16 md:flex-wrap md:items-center md:justify-between md:gap-x-2 md:gap-y-1 md:px-5 md:py-3 lg:min-h-[4.5rem]">
       {/* Left: Wordmark & Nav Links */}
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         {/* Logo and Wordmark */}
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-amber-200/30 bg-amber-100/10 shadow-sm sm:h-11 sm:w-11 md:h-12 md:w-12">
@@ -109,15 +109,15 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Center: Compile & Run, Explain, Sample Select */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+      <div className="col-span-2 row-start-2 flex w-full min-w-0 items-center justify-between gap-2 md:col-span-1 md:row-auto md:w-auto md:flex-1 md:flex-wrap md:justify-end md:gap-2">
         {/* Sample Program dropdown */}
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex min-w-0 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:px-2.5"
+            className="flex min-w-0 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:px-3"
           >
             <Code2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span className="max-w-[92px] truncate sm:max-w-[170px]">
+            <span className="max-w-[min(62vw,220px)] truncate sm:max-w-[170px]">
               {currentSample ? currentSample.name : 'Select Sample'}
             </span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -155,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onCompile}
           disabled={isCompiling}
-          className="flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 sm:px-3.5"
+          className="flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 sm:px-3.5"
           title="Compile and run (Ctrl+Enter / ⌘+Enter)"
         >
           {isCompiling ? (
@@ -167,10 +167,10 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1 sm:gap-1.5 md:col-auto md:row-auto">
         <button
           onClick={onOpenSettings}
-          className="flex h-8 w-5 items-center justify-center rounded transition-colors hover:bg-slate-100"
+          className="flex h-9 w-7 items-center justify-center rounded transition-colors hover:bg-slate-100"
           title={statusDot.tooltip}
           aria-label={statusDot.tooltip}
         >
@@ -179,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={onOpenHelp}
-          className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+          className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           title="Keyboard Shortcuts & Reference"
         >
           <HelpCircle className="w-4 h-4" />
