@@ -1,24 +1,28 @@
 import { SampleProgram } from './types/compiler';
 
-// Default API base URL for FastAPI backend compiler service
-export const DEFAULT_API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? 'http://localhost:8000' : '');
+const configuredApiBase =
+  import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, '') || '';
 
 export const API_BASE_STORAGE_KEY = 'compilescope_api_base';
 export const API_BASE_CHANGED_EVENT = 'optilexis:api-base-changed';
 
+// Prefer the deployment's configured API over a stale URL saved by this browser.
+export const DEFAULT_API_BASE =
+  configuredApiBase || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+
 export function getApiBase(): string {
+  if (configuredApiBase) return configuredApiBase;
+
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem(API_BASE_STORAGE_KEY);
-    if (saved && saved.trim()) return saved.trim();
+    if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
   }
   return DEFAULT_API_BASE;
 }
 
 export function setApiBase(url: string): void {
   if (typeof window !== 'undefined') {
-    const normalizedUrl = url.trim();
+    const normalizedUrl = url.trim().replace(/\/+$/, '');
     localStorage.setItem(API_BASE_STORAGE_KEY, normalizedUrl);
     window.dispatchEvent(
       new CustomEvent(API_BASE_CHANGED_EVENT, { detail: normalizedUrl })
