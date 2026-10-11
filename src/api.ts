@@ -252,6 +252,19 @@ function generateMockCompileResponse(code: string): CompileResponse {
       });
     }
 
+    const printfCall = trimmed.match(/^\s*printf\s*\((.*)\)\s*;\s*(?:\/\/.*)?$/);
+    if (
+      printfCall &&
+      !printfCall[1].trimStart().startsWith('"') &&
+      /^[A-Za-z_]\w*(?:\s+[A-Za-z_]\w*)+[.!?]?$/.test(printfCall[1].trim())
+    ) {
+      errors.push({
+        phase: 'syntax',
+        line: lineNum,
+        message: "Expected a quoted string literal as printf's first argument",
+      });
+    }
+
     // Scope tracking
     if (lineText.includes('add(')) currentScope = 'add()';
     else if (lineText.includes('check(')) currentScope = 'check()';
@@ -744,7 +757,20 @@ export function generateMockExplainResponse(req: ExplainRequest): ExplainRespons
   let explanation = `Compiler diagnostic on line ${error.line}: [${error.phase}] ${error.message}.`;
   let fix = `Review the reported line and correct the diagnostic: ${error.message}.`;
 
-  if (error.phase === 'syntax' && /Expected ['"]?;['"]?/.test(error.message)) {
+  if (
+    error.phase === 'syntax' &&
+    /quoted string literal.*printf/i.test(error.message)
+  ) {
+    const printfCall = sourceLine.match(
+      /^(\s*printf\s*\()\s*(.*?)\s*(\)\s*;\s*(?:\/\/.*)?)$/
+    );
+    if (printfCall && !printfCall[2].trimStart().startsWith('"')) {
+      const stringContents = printfCall[2].trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      fixedLine = `${printfCall[1]}"${stringContents}"${printfCall[3]}`;
+      explanation = `printf on line ${error.line} needs its text argument enclosed in double quotes.`;
+      fix = `Wrap the printf text in a string literal on line ${error.line}.`;
+    }
+  } else if (error.phase === 'syntax' && /Expected ['"]?;['"]?/.test(error.message)) {
     const commentStart = sourceLine.indexOf('//');
     const codePart = commentStart >= 0 ? sourceLine.slice(0, commentStart) : sourceLine;
     const comment = commentStart >= 0 ? sourceLine.slice(commentStart) : '';
