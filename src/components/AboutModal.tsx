@@ -55,7 +55,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               Overview
             </h4>
             <p className="text-[12px] leading-relaxed text-slate-600 dark:text-slate-400">
-              OptiLexis AI is an interactive compilation pipeline inspector and mini-IDE for custom C-like languages. It exposes every internal compiler transformation stage in real time, from raw source characters to optimized intermediate representations.
+              OptiLexis AI is ML-assisted and LLM-assisted, with a rule-based compiler core. Explore the compilation pipeline for a supported C-like language subset while keeping diagnostics, TAC generation, and optimization deterministic.
             </p>
           </div>
 

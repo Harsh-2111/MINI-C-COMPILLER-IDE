@@ -107,6 +107,15 @@ int main() {
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <section className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+            <h3 className="text-[11px] font-bold text-blue-900 dark:text-blue-300">
+              Compiler and assistance model
+            </h3>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+              ML-assisted and LLM-assisted, with a rule-based compiler core. Machine learning and Gemini provide optional advice; deterministic compiler rules remain authoritative.
+            </p>
+          </section>
+
           {/* Supported Types */}
           <section>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2 uppercase tracking-wider text-[11px] text-blue-600">

@@ -57,7 +57,7 @@ export const Editor: React.FC<EditorProps> = ({
     monacoRef.current = monaco;
 
     // Track cursor changes
-    editor.onDidChangeCursorPosition((e) => {
+    editor.onDidChangeCursorPosition((e: MonacoEditorType.ICursorPositionChangedEvent) => {
       if (onCursorChange) {
         onCursorChange(e.position.lineNumber, e.position.column);
       }

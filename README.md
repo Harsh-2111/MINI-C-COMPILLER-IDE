@@ -16,7 +16,7 @@
   <img alt="FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white" />
 </p>
 
-OptiLexis AI brings the main stages of a compiler into one interactive workspace. Write or load a small C-like program, compile it, inspect how it is tokenized and represented, and explore diagnostics, intermediate code, optimizations, and execution results.
+OptiLexis AI is ML-assisted and LLM-assisted, with a rule-based compiler core. Write or load a small C-like program, compile it, inspect how it is tokenized and represented, and explore diagnostics, intermediate code, optimizations, and execution results.
 
 > **Project scope:** OptiLexis AI is an educational mini-compiler for a supported C-like language subset. It is not a standards-complete C compiler and does not produce native machine code.
 
@@ -24,12 +24,15 @@ OptiLexis AI brings the main stages of a compiler into one interactive workspace
 
 - [What you can do](#what-you-can-do)
 - [How a compile works](#how-a-compile-works)
+- [How is machine learning used?](#how-is-machine-learning-used)
+- [Sample verification results](#sample-verification-results)
 - [Language support and limitations](#language-support-and-limitations)
 - [Technology](#technology)
 - [Run locally](#run-locally)
 - [Optional FastAPI service](#optional-fastapi-service)
 - [Deploy the frontend](#deploy-the-frontend)
 - [Project structure](#project-structure)
+- [Submission documents](#submission-documents)
 - [Quality checks](#quality-checks)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -77,6 +80,81 @@ Source code
 
 The interface presents these artifacts in separate panels so you can move between a program and the corresponding compiler representation. The browser execution engine is a small interpreter; it does not invoke a system C compiler.
 
+## How is machine learning used?
+
+Machine learning supports optional advice and never decides compilation outcomes.
+The lexer, parser, semantic analyzer, TAC generator, and optimizer remain
+deterministic and authoritative. The same rule-based compilation result is
+produced whether trained models are available or not.
+
+- **Model A — error classifier:** A TF-IDF vectorizer represents the compiler
+  phase and diagnostic message as word and bigram features. Logistic regression
+  predicts one of seven compiler-derived diagnostic categories.
+- **Model B — optimization predictor:** Random-forest classification predicts
+  whether an optimization reduction occurs, and a random-forest regressor
+  estimates the number of TAC instructions reduced. Its features are TAC length,
+  constant operations, unused assignments, constant branches, loop count,
+  function-call count, and source nesting depth.
+- **Training data:** `python -m ml.generate_dataset` creates 2,800 diagnostic
+  samples by mutating valid mini-C programs and retaining labels confirmed by
+  this project's actual compiler pipeline. It also creates 1,600 optimization
+  samples and records actual before/after TAC length reductions from the real
+  optimizer. A fixed random seed makes generation and evaluation reproducible.
+- **Evaluation:** `python -m ml.train` uses a stratified 80/20 held-out split for
+  the diagnostic classifier and records classifier accuracy and regressor MAE
+  in `backend/ml/models/metrics.json`. The currently generated fixed-seed data
+  reports 100% held-out accuracy for both classifiers and 0.00 reduction MAE.
+  Those perfect scores reflect highly controlled, repeated synthetic patterns
+  from this small grammar; accuracy measures this generated mini-language
+  dataset and is not a claim of general-purpose C diagnostic accuracy.
+
+The models can be regenerated using the commands in
+[backend/ml/README.md](./backend/ml/README.md). If model files are missing, the
+API continues with rule-based advice. Gemini is also optional and only supplies
+advisory explanations. Neither ML nor Gemini changes source code or compiler
+output without a user action.
+
+## Sample verification results
+
+Every C file in `backend/samples/` was submitted to the local FastAPI
+`POST /compile` endpoint. These are the returned token, TAC, and optimized TAC
+array lengths, and the diagnostics returned by that run:
+
+| Sample Name | Token Count | TAC Lines | Optimized TAC Lines | Detected Errors |
+| --- | ---: | ---: | ---: | --- |
+| `bool_if_else.c` | 35 | 12 | 10 | None |
+| `constant_folding.c` | 35 | 10 | 5 | None |
+| `fibonacci.c` | 67 | 21 | 20 | None |
+| `func_params.c` | 35 | 11 | 10 | None |
+| `lexical_error.c` | 15 | 0 | 0 | lexical: illegal character `@`; syntax: expected `;` before `2` |
+| `sample_lexer.c` | 20 | 0 | 0 | lexical: illegal character `@`; syntax: expected `;` before `10` |
+| `semantic_error.c` | 16 | 0 | 0 | semantic: undeclared identifier `missing_value` |
+| `syntax_error.c` | 18 | 0 | 0 | syntax: expected `;` before `return` |
+
+The intentionally invalid samples return zero TAC lines because code generation
+only runs after the program passes the required compiler checks. The lexer can
+report a lexical error and the parser can also report a follow-on syntax error
+for the same invalid source.
+
+The three required `/explain` checks returned ML categories and confidence
+scores: `lexical_error.c` → `illegal_character` (98.18%),
+`syntax_error.c` → `missing_semicolon` (96.57%), and `semantic_error.c` →
+`undeclared_identifier` (99.90%). `/advise` on `constant_folding.c` returned
+`optimization_reduction` at 100% confidence, with 3.43 instructions predicted
+versus 5 actually removed. Scores are model outputs on these particular
+requests, not guarantees of correctness.
+
+| Advisory request | ML category | Confidence | Source | Additional result |
+| --- | --- | ---: | --- | --- |
+| `/explain` · `lexical_error.c` | `illegal_character` | 98.18% | `ml` | Error phase: lexical |
+| `/explain` · `syntax_error.c` | `missing_semicolon` | 96.57% | `ml` | Error phase: syntax |
+| `/explain` · `semantic_error.c` | `undeclared_identifier` | 99.90% | `ml` | Error phase: semantic |
+| `/advise` · `constant_folding.c` | `optimization_reduction` | 100.00% | `ml` | Predicted 3.43 reduced TAC lines; actual reduction: 5 |
+
+Gemini did not contribute to the recorded requests (`source: ml`); the backend
+returned its deterministic wording fallback alongside available ML
+predictions.
+
 ## Language support and limitations
 
 The project implements a teaching language inspired by C. The exact syntax and execution support are intentionally narrower than full C.
@@ -100,8 +178,11 @@ The browser interpreter enforces a 100,000-step execution limit and a maximum fu
 | Editor | Monaco Editor |
 | Styling | Tailwind CSS |
 | AST visualization | React Flow and Dagre |
-| Backend API | Python, FastAPI, Pydantic, PLY |
-| Optional AI provider | Google Gemini via the backend |
+| Backend API and compiler | Python, FastAPI, Pydantic v2, PLY (LALR(1) parser) |
+| Advisory models | scikit-learn, TF-IDF, logistic regression, random forests |
+| Optional AI provider | Google Gemini via the official `google-genai` SDK |
+| Model persistence and data | joblib, NumPy, pandas |
+| AST visualization | React Flow and Dagre |
 | Backend tests | pytest and FastAPI TestClient |
 
 ## Run locally
@@ -121,6 +202,16 @@ npm run dev
 ```
 
 Vite prints the local URL after startup (the project development script uses port `3000`). Open that URL in a browser.
+You can optionally set `VITE_API_BASE_URL` in a root `.env` file to change the
+backend URL used by the frontend.
+
+The frontend checks the configured API's `/health` endpoint on startup and
+when the API URL changes. When the service is available, the UI uses the live
+compiler and reports backend/model status. If it is unavailable, or a live
+request loses its network connection, the UI falls back to the in-browser
+compiler and labels the session as offline. The in-browser compiler is a
+separate implementation and may not produce identical diagnostics for every
+edge case.
 
 Available frontend scripts:
 
@@ -131,9 +222,9 @@ Available frontend scripts:
 | `npm run build` | Create the production bundle in `dist/` |
 | `npm run preview` | Preview the production bundle locally |
 
-### Start the optional backend
+### Start the backend
 
-The FastAPI service can be run separately from the frontend. In PowerShell:
+In a second PowerShell terminal:
 
 ```powershell
 cd backend
@@ -143,13 +234,32 @@ python -m pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-The API listens at `http://127.0.0.1:8000` by default. Visit `http://127.0.0.1:8000/docs` for the interactive OpenAPI documentation.
+The API listens at `http://127.0.0.1:8000` by default. The frontend default
+API URL is `http://localhost:8000`; use `VITE_API_BASE_URL` or the saved API
+URL setting if your service runs elsewhere. Visit
+`http://127.0.0.1:8000/docs` for interactive OpenAPI documentation.
 
-To enable Gemini-backed assistance, copy `backend/.env.example` to `backend/.env` and set `GEMINI_API_KEY` to a valid key. Do not commit `.env` files or API keys. If no key is configured, the assistance endpoints use deterministic fallback responses.
+To enable Gemini-backed assistance, copy `backend/.env.example` to
+`backend/.env` and set `GEMINI_API_KEY` to a valid key. The optional
+`GEMINI_MODEL` setting defaults to `gemini-2.5-flash`. Do not commit `.env`
+files or API keys. If no key is configured, the assistance endpoints use
+deterministic fallback responses. Check connectivity with
+`python check_gemini.py` from `backend/`.
 
-> The frontend currently defaults to its in-browser compiler/interpreter mode. Running the backend separately does not by itself switch the deployed UI to backend compilation.
+The checked-in advisory model artifacts are ready for local use. To regenerate
+the reproducible compiler-derived datasets and model artifacts from `backend/`:
 
-## Optional FastAPI service
+```powershell
+python -m ml.generate_dataset
+python -m ml.train
+```
+
+The seven diagnostic categories and optimizer feature/evaluation details are
+documented in [backend/ml/README.md](./backend/ml/README.md). ML and Gemini
+responses are advisory only; neither changes compiler diagnostics, TAC, or
+optimizer output. `GET /ml/status` reports model availability and metrics.
+
+## FastAPI API reference
 
 The API is implemented in `backend/main.py` and exposes:
 
@@ -159,6 +269,41 @@ The API is implemented in `backend/main.py` and exposes:
 | `POST` | `/compile` | Return tokens, AST, symbols, TAC, optimized TAC, and diagnostics |
 | `POST` | `/explain` | Explain a supplied compiler diagnostic and suggest a fix |
 | `POST` | `/advise` | Suggest optimizations from source and TAC |
+| `GET` | `/ml/status` | Report advisory model availability, dataset sizes, and metrics |
+
+`POST /compile` accepts `{"code": "<source text>"}` and returns:
+`tokens` (type/value/line records), a nested `ast`, `symbols` (name/type/scope
+and source metadata), `tac`, `optimized_tac`, and `errors` (phase/line/message).
+When diagnostics prevent later passes from running, downstream arrays can be
+empty.
+
+`POST /explain` accepts the same source plus an `error` object with `phase`,
+`line`, and `message`. It returns an explanation, a suggested fix, fixed-code
+preview, ML category/confidence when a model is available, and a source label.
+`POST /advise` accepts `code`, `tac`, and `optimized_tac`; it returns
+optimization suggestions, ML prediction/category/confidence, and the predicted
+versus actual TAC reduction. `GET /ml/status` reports model load state, model
+types, generated dataset sizes, evaluation metrics, and any load error.
+
+Example explain request:
+
+```json
+{
+  "code": "int main() { int result = missing_value; return result; }",
+  "error": {
+    "phase": "semantic",
+    "line": 1,
+    "message": "Undeclared identifier 'missing_value'"
+  }
+}
+```
+
+An explain response includes `explanation`, `fix`, and `fixed_code`, plus
+`ml_category`, `ml_confidence`, and `source` when those advisory values are
+available. Source is `gemini+ml`, `ml`, or `rule-based`. Advice responses
+include `suggestions` and, when available, `ml_predicted_reduction`,
+`actual_reduction`, `ml_category`, `ml_confidence`, and `source`. If the model
+artifacts are unavailable, ML-specific response fields can be `null`.
 
 Example compile request:
 
@@ -173,7 +318,9 @@ Content-Type: application/json
 }
 ```
 
-The compile response contains `tokens`, `ast`, `symbols`, `tac`, `optimized_tac`, and `errors`. Diagnostics identify their phase (`lexical`, `syntax`, or `semantic`), line number, and message. See `/docs` for the complete request and response schemas.
+Diagnostics identify their phase (`lexical`, `syntax`, or `semantic`), line
+number, and message. Request bodies reject unexpected fields. See `/docs` for
+the complete generated request and response schemas.
 
 ## Deploy the frontend
 
@@ -184,7 +331,11 @@ The frontend is a Vite static site and can be deployed to Vercel or another stat
 3. Set the output directory to `dist`.
 4. Deploy the project.
 
-The static frontend's in-browser mode does not require a backend server. If deploying the optional FastAPI service, host it separately on a Python-capable service and configure the integration before expecting the frontend to use it; the current frontend default is browser mode, as noted above. Never put Gemini credentials in frontend environment variables or browser code.
+The static frontend's in-browser mode does not require a backend server. To
+use the live service, host FastAPI separately on a Python-capable service,
+configure the frontend API base URL to that service, and allow the frontend's
+origin in the API's CORS configuration. Never put Gemini credentials in
+frontend environment variables or browser code.
 
 ## Project structure
 
@@ -199,6 +350,7 @@ The static frontend's in-browser mode does not require a backend server. If depl
 │   ├── tac.py               # Three-address code generation
 │   ├── optimizer.py         # TAC optimization passes
 │   ├── ai.py                # Gemini integration and local fallbacks
+│   ├── ml/                  # Dataset generation, advisory models, and metrics
 │   ├── samples/             # Valid and intentionally invalid examples
 │   └── tests/               # Backend unit and end-to-end tests
 ├── public/
@@ -216,6 +368,13 @@ The static frontend's in-browser mode does not require a backend server. If depl
 └── vite.config.ts
 ```
 
+## Submission documents
+
+- [Phase 1 technical report](./PHASE1_REPORT.md): proposed approach, pipeline
+  flowchart, technology choices, and team understanding.
+- [Viva questions and demo script](./VIVA.md): 15 short answers, a timed
+  two-minute walkthrough, and an honest readiness checklist.
+
 ## Quality checks
 
 Before submitting a change, run the checks from the repository root:
@@ -225,13 +384,17 @@ npm run lint
 npm run build
 ```
 
-Run the backend test suite from the `backend` directory after activating its virtual environment:
+Run the backend test suite from the `backend` directory after activating its
+virtual environment:
 
 ```powershell
 python -m pytest -v
 ```
 
-The backend end-to-end tests exercise the sample programs through compilation and the assistance routes. Unit tests cover the lexer, parser, semantic analysis, TAC generation, and optimizer.
+The backend tests exercise sample programs through compilation and the
+assistance routes. Unit tests cover the lexer, parser, semantic analysis, TAC
+generation, optimizer, Gemini fallbacks, ML predictions, and the guarantee
+that ML availability does not change compiler output.
 
 ## Troubleshooting
 

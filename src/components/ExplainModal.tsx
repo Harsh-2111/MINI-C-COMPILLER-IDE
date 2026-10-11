@@ -8,6 +8,7 @@ import {
   Copy,
   AlertTriangle,
 } from 'lucide-react';
+import { AdvisoryMetadata } from './AdvisoryMetadata';
 
 interface ExplainModalProps {
   isOpen: boolean;
@@ -87,6 +88,11 @@ export const ExplainModal: React.FC<ExplainModalProps> = ({
             </div>
           ) : explanation ? (
             <>
+              <AdvisoryMetadata
+                source={explanation.source}
+                category={explanation.ml_category}
+                confidence={explanation.ml_confidence}
+              />
               {error && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/80 rounded-lg flex items-start gap-2 text-rose-900 dark:text-rose-300">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />

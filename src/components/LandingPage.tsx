@@ -55,6 +55,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
         <h1 className="text-4xl font-bold tracking-tight drop-shadow-[0_2px_18px_rgba(34,211,238,0.16)] sm:text-5xl">
           OptiLexis AI
         </h1>
+        <p className="max-w-sm text-sm leading-relaxed text-slate-300/80 sm:text-base">
+          ML-assisted and LLM-assisted, with a rule-based compiler core
+        </p>
         <div className="w-full max-w-md rounded-full border border-white/[0.07] bg-slate-900/70 p-1.5 shadow-[0_12px_44px_rgba(0,0,0,0.3)] backdrop-blur">
           <div
             className="h-3 overflow-hidden rounded-full bg-slate-800/90"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { AdviseResponse } from '../types/compiler';
 import { Sparkles, X, CheckCircle2, ArrowRight, Lightbulb } from 'lucide-react';
+import { AdvisoryMetadata } from './AdvisoryMetadata';
 
 interface AdviseModalProps {
   isOpen: boolean;
@@ -54,8 +55,44 @@ export const AdviseModal: React.FC<AdviseModalProps> = ({
                 Analyzing intermediate representation and call graph...
               </p>
             </div>
-          ) : advice && advice.suggestions.length > 0 ? (
+          ) : advice ? (
             <div className="space-y-3">
+              <AdvisoryMetadata
+                source={advice.source}
+                category={advice.ml_category}
+                confidence={advice.ml_confidence}
+              />
+              <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/70 dark:bg-emerald-950/20">
+                <h4 className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-300">
+                  ML predicted versus actual reduction
+                </h4>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[10px] text-slate-500">ML predicted</div>
+                    <div className="font-mono text-sm font-bold text-slate-800 dark:text-slate-100">
+                      {typeof advice.ml_predicted_reduction === 'number'
+                        ? advice.ml_predicted_reduction.toFixed(2)
+                        : 'Unavailable'} instructions
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500">Actual</div>
+                    <div className="font-mono text-sm font-bold text-slate-800 dark:text-slate-100">
+                      {typeof advice.actual_reduction === 'number'
+                        ? advice.actual_reduction
+                        : 'Unavailable'} instructions
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  Actual reduction is measured from the compiler’s original and optimized TAC. ML predictions are advisory only.
+                </p>
+              </section>
+              {advice.suggestions.length === 0 && (
+                <div className="p-4 text-center text-slate-500">
+                  No further optimizations suggested for the current intermediate representation.
+                </div>
+              )}
               {advice.suggestions.map((sug, idx) => (
                 <div
                   key={idx}
@@ -88,7 +125,7 @@ export const AdviseModal: React.FC<AdviseModalProps> = ({
             </div>
           ) : (
             <div className="p-4 text-center text-slate-500">
-              No further optimizations suggested for the current intermediate representation.
+              No advisory response is available yet.
             </div>
           )}
         </div>

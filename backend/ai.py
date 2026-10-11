@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
+from typing import Any
+
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field
 
 load_dotenv(Path(__file__).with_name(".env"))
 
 _TIMEOUT_SECONDS = 15
-_API_KEY = os.getenv("GEMINI_API_KEY")
+_DEFAULT_MODEL = "gemini-2.5-flash"
+_logger = logging.getLogger(__name__)
 
 
 class ExplanationResponse(BaseModel):
@@ -44,69 +51,98 @@ class CompileError(BaseModel):
     message: str
 
 
-def _model(response_model: type[BaseModel]):
-    if not _API_KEY:
-        return None
-    try:
-        import google.generativeai as genai
+@lru_cache(maxsize=1)
+def _client(api_key: str):
+    return genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=_TIMEOUT_SECONDS * 1000),
+    )
 
-        genai.configure(api_key=_API_KEY)
-        return genai.GenerativeModel(
-            "gemini-1.5-flash",
-            generation_config={
-                "response_mime_type": "application/json",
-                "response_schema": response_model,
-                "temperature": 0.2,
-            },
+
+def _model_name() -> str:
+    return os.getenv("GEMINI_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
+
+
+async def _request_json(
+    prompt: str, response_model: type[BaseModel]
+) -> BaseModel | None:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    try:
+        client = _client(api_key)
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=response_model,
+            temperature=0.2,
+        )
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.models.generate_content,
+                model=_model_name(),
+                contents=prompt,
+                config=config,
+            ),
+            timeout=_TIMEOUT_SECONDS,
+        )
+        if not response.text:
+            raise ValueError("Gemini returned an empty response")
+        return response_model.model_validate(_parse_json(response.text))
+    except asyncio.TimeoutError:
+        _logger.warning(
+            "Gemini request timed out after %s seconds; using deterministic fallback",
+            _TIMEOUT_SECONDS,
+        )
+    except (ValueError, TypeError, json.JSONDecodeError) as exception:
+        _logger.warning(
+            "Gemini response validation failed (%s); using deterministic fallback",
+            exception,
         )
     except Exception:
-        return None
+        _logger.exception("Gemini request failed; using deterministic fallback")
+    return None
+
+
+async def explain_error_with_source(
+    code: str, error: CompileError | dict[str, Any]
+) -> tuple[ExplanationResponse, bool]:
+    error_model = (
+        error if isinstance(error, CompileError) else CompileError.model_validate(error)
+    )
+    response = await _request_json(
+        _explanation_prompt(code, error_model),
+        ExplanationResponse,
+    )
+    if isinstance(response, ExplanationResponse):
+        return response, True
+    return _fallback_explanation(code, error_model), False
 
 
 async def explain_error(
-    code: str, error: CompileError | dict
+    code: str, error: CompileError | dict[str, Any]
 ) -> ExplanationResponse:
-    error_model = error if isinstance(error, CompileError) else CompileError.model_validate(error)
-    model = _model(ExplanationResponse)
-    if model is not None:
-        try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    model.generate_content,
-                    _explanation_prompt(code, error_model),
-                    request_options={"timeout": _TIMEOUT_SECONDS},
-                ),
-                timeout=_TIMEOUT_SECONDS,
-            )
-            data = _parse_json(response.text)
-            return ExplanationResponse.model_validate(data)
-        except (asyncio.TimeoutError, ValueError, TypeError, AttributeError, json.JSONDecodeError):
-            pass
-        except Exception:
-            pass
-    return _fallback_explanation(code, error_model)
+    response, _ = await explain_error_with_source(code, error)
+    return response
+
+
+async def advise_optimizations_with_source(
+    code: str, tac: list[str], optimized_tac: list[str]
+) -> tuple[AdviceResponse, bool]:
+    response = await _request_json(
+        _advice_prompt(code, tac, optimized_tac),
+        AdviceResponse,
+    )
+    if isinstance(response, AdviceResponse):
+        return response, True
+    return _fallback_advice(tac, optimized_tac), False
 
 
 async def advise_optimizations(
     code: str, tac: list[str], optimized_tac: list[str]
 ) -> AdviceResponse:
-    model = _model(AdviceResponse)
-    if model is not None:
-        try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    model.generate_content,
-                    _advice_prompt(code, tac, optimized_tac),
-                    request_options={"timeout": _TIMEOUT_SECONDS},
-                ),
-                timeout=_TIMEOUT_SECONDS,
-            )
-            return AdviceResponse.model_validate(_parse_json(response.text))
-        except (asyncio.TimeoutError, ValueError, TypeError, AttributeError, json.JSONDecodeError):
-            pass
-        except Exception:
-            pass
-    return _fallback_advice(tac, optimized_tac)
+    response, _ = await advise_optimizations_with_source(code, tac, optimized_tac)
+    return response
 
 
 def _explanation_prompt(code: str, error: CompileError) -> str:
@@ -127,7 +163,7 @@ def _advice_prompt(code: str, tac: list[str], optimized_tac: list[str]) -> str:
     )
 
 
-def _parse_json(text: str) -> dict:
+def _parse_json(text: str) -> dict[str, Any]:
     text = text.strip()
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.DOTALL)
     if fenced:

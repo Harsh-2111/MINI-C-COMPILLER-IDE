@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 try:
     from . import ai
     from .lexer import tokenize
+    from .ml.predict import MLAdvisor
     from .optimizer import optimize_tac
     from .parser import parse
     from .semantic import analyze
@@ -18,15 +19,21 @@ try:
 except ImportError:
     import ai
     from lexer import tokenize
+    from ml.predict import MLAdvisor
     from optimizer import optimize_tac
     from parser import parse
     from semantic import analyze
     from tac import generate_tac
 
 app = FastAPI(title="OptiLexis AI Compiler API", version="1.0.0")
+ml_advisor = MLAdvisor()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,6 +105,17 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/ml/status")
+async def ml_status() -> dict:
+    return {
+        "loaded": ml_advisor.loaded,
+        "model_types": ml_advisor.model_types,
+        "dataset_sizes": ml_advisor.dataset_sizes,
+        "metrics": ml_advisor.metrics,
+        "load_error": ml_advisor.load_error,
+    }
+
+
 @app.post("/compile", response_model=CompileResponse)
 async def compile_source(request: CompileRequest) -> CompileResponse:
     tokens: list[dict] = []
@@ -144,14 +162,45 @@ async def compile_source(request: CompileRequest) -> CompileResponse:
 
 
 @app.post("/explain")
-async def explain(request: ExplainRequest) -> dict[str, str]:
-    response = await ai.explain_error(request.code, request.error)
-    return response.model_dump()
+async def explain(request: ExplainRequest) -> dict:
+    response, gemini_used = await ai.explain_error_with_source(
+        request.code, request.error
+    )
+    prediction = ml_advisor.predict_error(request.error.model_dump())
+    result = response.model_dump()
+    result.update(
+        ml_category=prediction["category"] if prediction else None,
+        ml_confidence=prediction["confidence"] if prediction else None,
+        source=_advisory_source(gemini_used, prediction is not None),
+    )
+    return result
 
 
 @app.post("/advise")
 async def advise(request: AdviseRequest) -> dict:
-    response = await ai.advise_optimizations(
+    response, gemini_used = await ai.advise_optimizations_with_source(
         request.code, request.tac, request.optimized_tac
     )
-    return response.model_dump()
+    prediction = ml_advisor.predict_program_optimization(
+        request.code, request.tac, request.optimized_tac
+    )
+    actual_reduction = max(0, len(request.tac) - len(request.optimized_tac))
+    result = response.model_dump()
+    result.update(
+        ml_category=prediction["category"] if prediction else None,
+        ml_confidence=prediction["confidence"] if prediction else None,
+        ml_predicted_reduction=(
+            prediction["estimated_reduction"] if prediction else None
+        ),
+        actual_reduction=actual_reduction,
+        source=_advisory_source(gemini_used, prediction is not None),
+    )
+    return result
+
+
+def _advisory_source(gemini_used: bool, ml_used: bool) -> str:
+    if gemini_used and ml_used:
+        return "gemini+ml"
+    if ml_used:
+        return "ml"
+    return "rule-based"

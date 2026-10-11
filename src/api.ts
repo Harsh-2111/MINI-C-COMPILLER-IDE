@@ -9,6 +9,7 @@ import {
   Token,
   AstNode,
   SymbolEntry,
+  MLStatusResponse,
 } from './types/compiler';
 
 /**
@@ -16,18 +17,35 @@ import {
  */
 export async function checkBackendHealth(customBase?: string): Promise<boolean> {
   const baseUrl = customBase || getApiBase();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1800);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1800);
-    const res = await fetch(`${baseUrl}/health`, {
+    const response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
       signal: controller.signal,
-    }).catch(() => null);
-    clearTimeout(timeout);
-    return !!(res && res.ok);
+    });
+    return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+export async function fetchMLStatus(customBase?: string): Promise<MLStatusResponse> {
+  const baseUrl = customBase || getApiBase();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/ml/status`, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!response.ok) {
+    throw new Error(`ML status service returned HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json() as Promise<MLStatusResponse>;
 }
 
 /**
@@ -111,7 +129,7 @@ export async function explainError(
     return data;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('Failed to fetch') || msg.includes('aborted')) {
+    if (msg.includes('Failed to fetch') || msg.includes('aborted') || msg.includes('NetworkError')) {
       throw new Error(`Backend not reachable at ${baseUrl}`);
     }
     throw new Error(msg);
@@ -155,7 +173,7 @@ export async function adviseOptimization(
     return data;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('Failed to fetch') || msg.includes('aborted')) {
+    if (msg.includes('Failed to fetch') || msg.includes('aborted') || msg.includes('NetworkError')) {
       throw new Error(`Backend not reachable at ${baseUrl}`);
     }
     throw new Error(msg);
@@ -191,10 +209,13 @@ function generateMockCompileResponse(code: string): CompileResponse {
 
     // Check lexical error: invalid character like @ or # or $
     if (lineText.includes('@') || lineText.includes('$') || (lineText.includes('#') && !trimmed.startsWith('#include'))) {
+      const invalidCharacter = [...lineText].find((character) =>
+        ['@', '$', '#'].includes(character)
+      ) || '';
       errors.push({
         phase: 'lexical',
         line: lineNum,
-        message: `Illegal unrecognized token symbol encountered: '@'`,
+        message: `Illegal unrecognized token symbol encountered: '${invalidCharacter}'`,
       });
     }
 
@@ -707,60 +728,74 @@ function generateTacFromCode(code: string): { tac: string[]; optimized_tac: stri
   return { tac: raw, optimized_tac: opt };
 }
 
-function generateMockExplainResponse(req: ExplainRequest): ExplainResponse {
+export function generateMockExplainResponse(req: ExplainRequest): ExplainResponse {
   const { error, code } = req;
-  const lineNum = error.line || 1;
+  const lines = code.split('\n');
+  const lineIndex = Math.max(0, Math.min(lines.length - 1, (error.line || 1) - 1));
+  const sourceLine = lines[lineIndex] ?? '';
+  let fixedLine = sourceLine;
+  let explanation = `Compiler diagnostic on line ${error.line}: [${error.phase}] ${error.message}.`;
+  let fix = `Review the reported line and correct the diagnostic: ${error.message}.`;
 
-  if (error.phase === 'syntax') {
-    const fixedLines = code.split('\n').map((l, i) => {
-      if (i + 1 === lineNum && !l.trim().endsWith(';')) {
-        return l + ';';
-      }
-      return l;
-    });
-
-    return {
-      explanation: `Syntax error on line ${lineNum}: Statements must terminate with a semicolon ';'. The parser encountered the next token before closing the previous statement.`,
-      fix: `Add a terminating ';' at the end of line ${lineNum}.`,
-      fixed_code: fixedLines.join('\n'),
-    };
-  }
-
-  if (error.phase === 'semantic') {
-    if (error.message.includes('undeclared') || error.message.includes('undeclared_var')) {
-      const fixedCode = code
-        .replace('int count = 10;', 'int count = 10;\n    int undeclared_var = 5;')
-        .replace('"incompatible_string"', '1');
-
-      return {
-        explanation: `Semantic error: Identifier 'undeclared_var' is referenced without declaration in the active scope. Variable 'status' also received a type mismatch assignment.`,
-        fix: `Declare 'int undeclared_var = 5;' before reading it, and assign an integer value to 'status'.`,
-        fixed_code: fixedCode,
-      };
+  if (error.phase === 'syntax' && /Expected ['"]?;['"]?/.test(error.message)) {
+    const commentStart = sourceLine.indexOf('//');
+    const codePart = commentStart >= 0 ? sourceLine.slice(0, commentStart) : sourceLine;
+    const comment = commentStart >= 0 ? sourceLine.slice(commentStart) : '';
+    if (!codePart.trimEnd().endsWith(';') && codePart.trimEnd() && !/[{}]\s*$/.test(codePart)) {
+      fixedLine = `${codePart.trimEnd()};${codePart.slice(codePart.trimEnd().length)}${comment}`;
+      explanation = `The parser expected a statement terminator on line ${error.line}.`;
+      fix = `Add a semicolon to the statement on line ${error.line}.`;
     }
-
-    const fixedCode = code.replace(/"[^"]*"/, '0');
-    return {
-      explanation: `Semantic error: Incompatible types in assignment expression.`,
-      fix: `Ensure assigned expression type matches the declared variable type.`,
-      fixed_code: fixedCode,
-    };
+  } else if (error.phase === 'lexical') {
+    const invalidCharacter = error.message.match(/character ['"](.?)['"]/i)?.[1]
+      ?? error.message.match(/symbol encountered: ['"](.?)['"]/i)?.[1];
+    if (invalidCharacter) {
+      const characterIndex = sourceLine.indexOf(invalidCharacter);
+      if (characterIndex >= 0) {
+        fixedLine = `${sourceLine.slice(0, characterIndex)}${sourceLine.slice(characterIndex + invalidCharacter.length)}`;
+      }
+      explanation = `The lexer does not recognize ${JSON.stringify(invalidCharacter)} on line ${error.line}.`;
+      fix = `Remove the illegal character ${JSON.stringify(invalidCharacter)} from line ${error.line}.`;
+    }
+  } else if (error.phase === 'semantic') {
+    const undeclaredMatch = error.message.match(/undeclared identifier ['"]([A-Za-z_]\w*)['"]/i);
+    if (undeclaredMatch) {
+      const identifier = undeclaredMatch[1];
+      fixedLine = sourceLine.replace(new RegExp(`\\b${escapeRegExp(identifier)}\\b`, 'g'), '0');
+      explanation = `Identifier '${identifier}' is used without a declaration on line ${error.line}.`;
+      fix = `Replace the undeclared '${identifier}' reference on line ${error.line} with a valid value or declare it first.`;
+    } else if (/type mismatch/i.test(error.message)) {
+      const returnMismatch = /returns ['"]([^'"]+)['"] but got ['"]([^'"]+)['"]/i.test(error.message);
+      if (/^\s*return\b/.test(sourceLine) || returnMismatch) {
+        fixedLine = sourceLine.replace(
+          /^(\s*return\s+).+?(\s*;\s*(?:\/\/.*)?)$/,
+          (_match, prefix: string, suffix: string) => `${prefix}0${suffix}`
+        );
+      } else {
+        const assignmentStart = sourceLine.indexOf('=');
+        const semicolon = sourceLine.indexOf(';', assignmentStart + 1);
+        if (assignmentStart >= 0 && semicolon > assignmentStart) {
+          fixedLine = `${sourceLine.slice(0, assignmentStart + 1)} 0${sourceLine.slice(semicolon)}`;
+        }
+      }
+      explanation = `The value on line ${error.line} has a type incompatible with the expected type.`;
+      fix = `Use a value compatible with the expected type on line ${error.line}.`;
+    }
   }
 
-  if (error.phase === 'lexical') {
-    const fixedCode = code.replace('@', '*');
-    return {
-      explanation: `Lexical scanner rejected illegal symbol '@'. Valid operators are +, -, *, /, %, ==, !=, <, <=, >, >=.`,
-      fix: `Replace '@' with a valid binary arithmetic operator such as '*'.`,
-      fixed_code: fixedCode,
-    };
-  }
-
+  lines[lineIndex] = fixedLine;
   return {
-    explanation: `Compiler diagnostic on line ${lineNum}: [${error.phase}] ${error.message}.`,
-    fix: `Check line ${lineNum} for compliance with the grammar specification.`,
-    fixed_code: code,
+    explanation,
+    fix,
+    fixed_code: lines.join('\n'),
+    ml_category: null,
+    ml_confidence: null,
+    source: 'rule-based',
   };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function generateMockAdviseResponse(req: AdviseRequest): AdviseResponse {
@@ -782,5 +817,13 @@ function generateMockAdviseResponse(req: AdviseRequest): AdviseResponse {
     },
   ];
 
-  return { suggestions };
+  const actualReduction = Math.max(0, req.tac.length - req.optimized_tac.length);
+  return {
+    suggestions,
+    ml_category: null,
+    ml_confidence: null,
+    ml_predicted_reduction: null,
+    actual_reduction: actualReduction,
+    source: 'rule-based',
+  };
 }

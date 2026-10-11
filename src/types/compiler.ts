@@ -45,6 +45,9 @@ export interface ExplainResponse {
   explanation: string;
   fix: string;
   fixed_code: string;
+  ml_category?: string | null;
+  ml_confidence?: number | null;
+  source?: 'gemini+ml' | 'ml' | 'rule-based';
 }
 
 export interface AdviseSuggestion {
@@ -61,6 +64,22 @@ export interface AdviseRequest {
 
 export interface AdviseResponse {
   suggestions: AdviseSuggestion[];
+  ml_category?: string | null;
+  ml_confidence?: number | null;
+  ml_predicted_reduction?: number | null;
+  actual_reduction?: number | null;
+  source?: 'gemini+ml' | 'ml' | 'rule-based';
+}
+
+export interface MLStatusResponse {
+  loaded: boolean;
+  model_types: Record<string, string | null>;
+  dataset_sizes: {
+    errors: number;
+    optimization: number;
+  };
+  metrics: Record<string, number>;
+  load_error?: string | null;
 }
 
 export interface SampleProgram {

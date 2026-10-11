@@ -17,8 +17,21 @@ import { ConsolePanel } from './components/ConsolePanel';
 import { OutputPanel } from './components/OutputPanel';
 import { LandingPage } from './components/LandingPage';
 import { ToastContainer, ToastItem } from './components/Toast';
-import { SAMPLE_PROGRAMS, getApiBase } from './config';
-import { compileCode, explainError, adviseOptimization } from './api';
+import { ModelInfoPanel } from './components/ModelInfoPanel';
+import {
+  API_BASE_CHANGED_EVENT,
+  API_BASE_STORAGE_KEY,
+  DEFAULT_API_BASE,
+  SAMPLE_PROGRAMS,
+  getApiBase,
+} from './config';
+import {
+  checkBackendHealth,
+  compileCode,
+  explainError,
+  adviseOptimization,
+  fetchMLStatus,
+} from './api';
 import { ExecutionResult, runProgram } from './runtime';
 import {
   CompileResponse,
@@ -28,6 +41,7 @@ import {
   SampleProgram,
   EditorTabFile,
   ConsoleLogEntry,
+  MLStatusResponse,
 } from './types/compiler';
 import {
   Layers,
@@ -131,9 +145,74 @@ export default function App() {
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
 
-  const isMockMode = true;
+  const [apiBaseUrl, setApiBaseUrl] = useState(getApiBase);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const [mlStatus, setMLStatus] = useState<MLStatusResponse | null>(null);
+  const [mlStatusLoading, setMLStatusLoading] = useState(false);
+  const [mlStatusError, setMLStatusError] = useState<string | null>(null);
+  const isMockMode = backendOnline !== true;
 
-  const apiBaseUrl = getApiBase();
+  useEffect(() => {
+    const updateApiBase = (url: string) => {
+      setApiBaseUrl(url.trim() || DEFAULT_API_BASE);
+      setBackendOnline(null);
+      setMLStatus(null);
+      setMLStatusError(null);
+    };
+    const handleApiBaseChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      updateApiBase(customEvent.detail || getApiBase());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === API_BASE_STORAGE_KEY) {
+        updateApiBase(event.newValue || getApiBase());
+      }
+    };
+    window.addEventListener(API_BASE_CHANGED_EVENT, handleApiBaseChanged);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(API_BASE_CHANGED_EVENT, handleApiBaseChanged);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBackendOnline(null);
+    void checkBackendHealth(apiBaseUrl).then((isOnline) => {
+      if (!cancelled) setBackendOnline(isOnline);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl]);
+
+  useEffect(() => {
+    if (!backendOnline) {
+      setMLStatus(null);
+      setMLStatusError(null);
+      setMLStatusLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setMLStatusLoading(true);
+    setMLStatusError(null);
+    void fetchMLStatus(apiBaseUrl)
+      .then((status) => {
+        if (!cancelled) setMLStatus(status);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setMLStatusError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMLStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [backendOnline, apiBaseUrl]);
 
   // Modals & Drawers
   const [helpOpen, setHelpOpen] = useState(false);
@@ -189,6 +268,22 @@ export default function App() {
     setConsoleLogs((prev) => [...prev, { id, timestamp, level, message }]);
   }, []);
 
+  const requestWithOfflineFallback = useCallback(async <T,>(
+    request: (useMockMode: boolean) => Promise<T>
+  ): Promise<T> => {
+    if (backendOnline !== true) return request(true);
+    try {
+      return await request(false);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('Backend not reachable')) throw error;
+      setBackendOnline(false);
+      setMLStatus(null);
+      setMLStatusError(null);
+      return request(true);
+    }
+  }, [backendOnline]);
+
   // Compile Handler
   const handleCompile = useCallback(async (sourceCode = code) => {
     setIsCompiling(true);
@@ -199,7 +294,9 @@ export default function App() {
     addConsoleLog(`Build started: ${filename}`, 'info');
 
     try {
-      const result = await compileCode(sourceCode, isMockMode, apiBaseUrl);
+      const result = await requestWithOfflineFallback((mockMode) =>
+        compileCode(sourceCode, mockMode, apiBaseUrl)
+      );
       const elapsed = performance.now() - startTime;
       setTimeTakenMs(elapsed);
       setCompileData(result);
@@ -250,31 +347,10 @@ export default function App() {
     } finally {
       setIsCompiling(false);
     }
-  }, [code, isMockMode, apiBaseUrl, activeFile, addConsoleLog, addToast]);
-
-  // Keyboard Shortcuts: Ctrl+Enter (compile), Ctrl+Shift+E (explain)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleCompile();
-      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
-        e.preventDefault();
-        handleExplainGlobal();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === '`') {
-        e.preventDefault();
-        setConsoleOpen((prev) => !prev);
-      } else if (e.altKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault();
-        handleFormatCode();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCompile]);
+  }, [code, isMockMode, apiBaseUrl, activeFile, addConsoleLog, addToast, requestWithOfflineFallback]);
 
   // Explain with AI button action
-  const handleExplainGlobal = async () => {
+  const handleExplainGlobal = useCallback(async () => {
     const currentErrors = compileData?.errors || [];
 
     if (currentErrors.length > 0) {
@@ -284,7 +360,9 @@ export default function App() {
       setExplainModalOpen(true);
       setIsExplaining(true);
       try {
-        const res = await explainError({ code, error: targetError }, isMockMode, apiBaseUrl);
+        const res = await requestWithOfflineFallback((mockMode) =>
+          explainError({ code, error: targetError }, mockMode, apiBaseUrl)
+        );
         setModalExplanation(res);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -298,14 +376,16 @@ export default function App() {
       setAdviseModalOpen(true);
       setIsAdvising(true);
       try {
-        const res = await adviseOptimization(
-          {
-            code,
-            tac: compileData?.tac || [],
-            optimized_tac: compileData?.optimized_tac || [],
-          },
-          isMockMode,
-          apiBaseUrl
+        const res = await requestWithOfflineFallback((mockMode) =>
+          adviseOptimization(
+            {
+              code,
+              tac: compileData?.tac || [],
+              optimized_tac: compileData?.optimized_tac || [],
+            },
+            mockMode,
+            apiBaseUrl
+          )
         );
         setAdviceData(res);
       } catch (err: unknown) {
@@ -316,11 +396,13 @@ export default function App() {
         setIsAdvising(false);
       }
     }
-  };
+  }, [compileData, code, requestWithOfflineFallback, apiBaseUrl, addToast, addConsoleLog]);
 
   // Explain single error from errors panel
   const handleExplainSingleError = async (error: CompilerError): Promise<ExplainResponse> => {
-    return explainError({ code, error }, isMockMode, apiBaseUrl);
+    return requestWithOfflineFallback((mockMode) =>
+      explainError({ code, error }, mockMode, apiBaseUrl)
+    );
   };
 
   // Apply fix from AI (replaces editor code with fixed_code only)
@@ -350,6 +432,27 @@ export default function App() {
     setCode(formatted.join('\n'));
     addToast('Source code formatted', 'info');
   };
+
+  // Keyboard Shortcuts: Ctrl+Enter (compile), Ctrl+Shift+E (explain)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleCompile();
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+        e.preventDefault();
+        void handleExplainGlobal();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '`') {
+        e.preventDefault();
+        setConsoleOpen((prev) => !prev);
+      } else if (e.altKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault();
+        handleFormatCode();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCompile, handleExplainGlobal]);
 
   // Tab management
   const handleAddFile = () => {
@@ -438,6 +541,27 @@ export default function App() {
         onOpenReference={() => setReferenceOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
       />
+
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950 sm:px-4">
+        <div
+          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold leading-tight ${
+            backendOnline
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300'
+              : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {backendOnline
+            ? 'Backend: Python PLY compiler + ML (connected)'
+            : 'Offline mode: in-browser compiler (ML and Gemini unavailable)'}
+        </div>
+        <ModelInfoPanel
+          status={mlStatus}
+          isLoading={mlStatusLoading}
+          error={mlStatusError}
+        />
+      </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto md:flex-row md:overflow-hidden">
         <div

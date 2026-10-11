@@ -87,7 +87,7 @@ def test_live_explain_and_advise_fallback_payloads():
     )
     assert explain_response.status_code == 200
     explanation = explain_response.json()
-    assert set(explanation) == {"explanation", "fix", "fixed_code"}
+    assert {"explanation", "fix", "fixed_code"} <= set(explanation)
     assert "missing_value" in explanation["explanation"]
     assert explanation["fix"]
 
@@ -101,7 +101,7 @@ def test_live_explain_and_advise_fallback_payloads():
     )
     assert advise_response.status_code == 200
     advice = advise_response.json()
-    assert set(advice) == {"suggestions"}
+    assert "suggestions" in advice
     assert advice["suggestions"]
     assert {"title", "detail", "line"} <= set(advice["suggestions"][0])
 

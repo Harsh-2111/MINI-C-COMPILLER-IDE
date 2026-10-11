@@ -1,0 +1,10 @@
+{
+  "error_classifier_accuracy": 1.0,
+  "optimization_classifier_accuracy": 1.0,
+  "optimization_regressor_mae": 0.0,
+  "error_samples": 2800,
+  "optimization_samples": 1600,
+  "random_seed": 42,
+  "error_train_fraction": 0.8,
+  "error_test_fraction": 0.2
+}

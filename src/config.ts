@@ -1,9 +1,11 @@
 import { SampleProgram } from './types/compiler';
 
 // Default API base URL for FastAPI backend compiler service
-export const DEFAULT_API_BASE = 'http://localhost:8000';
+export const DEFAULT_API_BASE =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const API_BASE_STORAGE_KEY = 'compilescope_api_base';
+export const API_BASE_STORAGE_KEY = 'compilescope_api_base';
+export const API_BASE_CHANGED_EVENT = 'optilexis:api-base-changed';
 
 export function getApiBase(): string {
   if (typeof window !== 'undefined') {
@@ -15,7 +17,11 @@ export function getApiBase(): string {
 
 export function setApiBase(url: string): void {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(API_BASE_STORAGE_KEY, url.trim());
+    const normalizedUrl = url.trim();
+    localStorage.setItem(API_BASE_STORAGE_KEY, normalizedUrl);
+    window.dispatchEvent(
+      new CustomEvent(API_BASE_CHANGED_EVENT, { detail: normalizedUrl })
+    );
   }
 }
 

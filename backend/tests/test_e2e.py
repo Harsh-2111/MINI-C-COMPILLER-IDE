@@ -25,6 +25,20 @@ def test_health_endpoint():
     assert response.json() == {"status": "ok"}
 
 
+def test_localhost_frontend_origin_is_allowed_by_cors():
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "GET" in response.headers["access-control-allow-methods"]
+
+
 def test_all_seven_samples_compile_through_pipeline_and_ai_routes():
     for filename, expected_error_phase in SAMPLES:
         code = (BACKEND_DIR / "samples" / filename).read_text(encoding="utf-8")
@@ -56,7 +70,7 @@ def test_all_seven_samples_compile_through_pipeline_and_ai_routes():
         )
         assert explain_response.status_code == 200, filename
         explanation = explain_response.json()
-        assert set(explanation) == {"explanation", "fix", "fixed_code"}
+        assert {"explanation", "fix", "fixed_code"} <= set(explanation)
         assert explanation["explanation"]
         assert explanation["fix"]
 
