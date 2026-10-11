@@ -178,12 +178,23 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: number | undefined;
     setBackendOnline(null);
-    void checkBackendHealth(apiBaseUrl).then((isOnline) => {
-      if (!cancelled) setBackendOnline(isOnline);
-    });
+
+    const checkConnection = async () => {
+      const isOnline = await checkBackendHealth(apiBaseUrl);
+      if (cancelled) return;
+      setBackendOnline(isOnline);
+      retryTimer = window.setTimeout(
+        () => void checkConnection(),
+        isOnline ? 30_000 : 5_000
+      );
+    };
+
+    void checkConnection();
     return () => {
       cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
   }, [apiBaseUrl]);
 
@@ -549,12 +560,23 @@ export default function App() {
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300'
               : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300'
           }`}
+          title={
+            backendOnline === false
+              ? apiBaseUrl
+                ? `Backend health check failed at ${apiBaseUrl}.`
+                : 'Set VITE_API_BASE_URL in Vercel to your deployed FastAPI backend URL.'
+              : undefined
+          }
           role="status"
           aria-live="polite"
         >
-          {backendOnline
+          {backendOnline === null
+            ? 'Connecting to compiler backend...'
+            : backendOnline
             ? 'Backend: Python PLY compiler + ML (connected)'
-            : 'Offline mode: in-browser compiler (ML and Gemini unavailable)'}
+            : apiBaseUrl
+              ? 'Offline mode: backend unavailable; using in-browser compiler'
+              : 'Backend URL not configured; using in-browser compiler'}
         </div>
         <ModelInfoPanel
           status={mlStatus}

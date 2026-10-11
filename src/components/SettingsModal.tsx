@@ -146,7 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   setTestResult(null);
                 }}
                 onBlur={handleSaveUrl}
-                placeholder="http://localhost:8000"
+                placeholder={DEFAULT_API_BASE || 'https://your-backend.onrender.com'}
                 className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md font-mono text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <button
@@ -160,7 +160,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              FastAPI backend endpoints: POST /compile, POST /explain, POST /advise.
+              FastAPI endpoints: POST /compile, /explain, /advise. On Vercel, set
+              VITE_API_BASE_URL to your deployed backend URL and redeploy.
             </p>
           </div>
 

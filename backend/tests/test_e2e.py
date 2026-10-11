@@ -39,6 +39,20 @@ def test_localhost_frontend_origin_is_allowed_by_cors():
     assert "GET" in response.headers["access-control-allow-methods"]
 
 
+def test_vercel_frontend_origin_is_allowed_by_cors():
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "https://cdcompiler.vercel.app",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://cdcompiler.vercel.app"
+    assert "GET" in response.headers["access-control-allow-methods"]
+
+
 def test_all_seven_samples_compile_through_pipeline_and_ai_routes():
     for filename, expected_error_phase in SAMPLES:
         code = (BACKEND_DIR / "samples" / filename).read_text(encoding="utf-8")

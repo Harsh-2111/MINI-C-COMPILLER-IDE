@@ -234,10 +234,44 @@ python -m pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-The API listens at `http://127.0.0.1:8000` by default. The frontend default
-API URL is `http://localhost:8000`; use `VITE_API_BASE_URL` or the saved API
-URL setting if your service runs elsewhere. Visit
-`http://127.0.0.1:8000/docs` for interactive OpenAPI documentation.
+The API listens at `http://127.0.0.1:8000` by default. During local Vite
+development, the frontend defaults to `http://localhost:8000`. In production,
+configure `VITE_API_BASE_URL` with the deployed API URL; it intentionally does
+not target a visitor's localhost. The saved API URL setting can also override
+the environment default. Visit `http://127.0.0.1:8000/docs` for interactive
+OpenAPI documentation.
+
+### Deploy the backend for Vercel
+
+Vercel serves this project's frontend; it does not automatically run the
+FastAPI service. A browser visiting Vercel cannot connect to
+`localhost:8000` on the developer's computer. Deploy the backend separately
+before expecting the badge to report a connected compiler.
+
+This repository includes a Render Blueprint in [`render.yaml`](./render.yaml):
+
+1. In Render, create a new **Blueprint** from this GitHub repository and allow
+   it to create the `optilexis-ai-api` web service.
+2. When prompted, enter the Gemini key as the secret `GEMINI_API_KEY` service
+   environment variable. Do not add it to Vercel's frontend environment.
+3. Wait for the Render deployment to finish, then verify
+   `https://<your-render-service>.onrender.com/health` returns
+   `{"status":"ok"}`.
+4. In Vercel, open the frontend project's **Settings → Environment Variables**
+   and set `VITE_API_BASE_URL` to `https://<your-render-service>.onrender.com`
+   for Production (and Preview if desired). This is a public backend URL, not
+   a secret.
+5. Redeploy the Vercel frontend so Vite includes the new build-time variable.
+   Refresh the site and confirm it reports **Backend: Python PLY compiler + ML
+   (connected)**.
+
+The backend Blueprint sets `FRONTEND_ORIGINS` to the screenshot's
+`https://cdcompiler.vercel.app` domain and also permits Vercel preview domains.
+If your production Vercel domain differs, update `FRONTEND_ORIGINS` in the
+Render service environment and redeploy the backend. Render's free service may
+sleep when idle, so its first health check can take time; the frontend retries
+backend detection automatically and will switch back to live mode once the API
+wakes up.
 
 To enable Gemini-backed assistance, copy `backend/.env.example` to
 `backend/.env` and set `GEMINI_API_KEY` to a valid key. The optional

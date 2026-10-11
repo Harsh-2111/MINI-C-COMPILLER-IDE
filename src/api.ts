@@ -24,7 +24,14 @@ export async function checkBackendHealth(customBase?: string): Promise<boolean> 
       method: 'GET',
       signal: controller.signal,
     });
-    return response.ok;
+    if (!response.ok) return false;
+    const health: unknown = await response.json();
+    return (
+      typeof health === 'object' &&
+      health !== null &&
+      'status' in health &&
+      health.status === 'ok'
+    );
   } catch {
     return false;
   } finally {

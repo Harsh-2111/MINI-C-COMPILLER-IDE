@@ -2,7 +2,8 @@ import { SampleProgram } from './types/compiler';
 
 // Default API base URL for FastAPI backend compiler service
 export const DEFAULT_API_BASE =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export const API_BASE_STORAGE_KEY = 'compilescope_api_base';
 export const API_BASE_CHANGED_EVENT = 'optilexis:api-base-changed';
