@@ -182,7 +182,6 @@ The browser interpreter enforces a 100,000-step execution limit and a maximum fu
 | Advisory models | scikit-learn, TF-IDF, logistic regression, random forests |
 | Optional AI provider | Google Gemini via the official `google-genai` SDK |
 | Model persistence and data | joblib, NumPy, pandas |
-| AST visualization | React Flow and Dagre |
 | Backend tests | pytest and FastAPI TestClient |
 
 ## Run locally
@@ -241,44 +240,45 @@ not target a visitor's localhost. The saved API URL setting can also override
 the environment default. Visit `http://127.0.0.1:8000/docs` for interactive
 OpenAPI documentation.
 
-### Deploy the backend for Vercel
+### Current production deployment
 
-Vercel serves this project's frontend; it does not automatically run the
-FastAPI service. A browser visiting Vercel cannot connect to
-`localhost:8000` on the developer's computer. Deploy the backend separately
-before expecting the badge to report a connected compiler.
+The production frontend is deployed on Vercel (use the Production domain
+currently assigned in the Vercel project), and its FastAPI compiler backend
+is deployed separately on Render at
+[`https://optilexis-ai-api.onrender.com`](https://optilexis-ai-api.onrender.com).
+The API health check is
+[`/health`](https://optilexis-ai-api.onrender.com/health); interactive API
+documentation is at
+[`/docs`](https://optilexis-ai-api.onrender.com/docs).
 
-This repository includes a Render Blueprint in [`render.yaml`](./render.yaml):
+The Vercel **Production** environment uses the public, non-secret setting
+`VITE_API_BASE_URL=https://optilexis-ai-api.onrender.com`. It tells the browser
+where to reach the backend and is intentionally visible in the built frontend.
+It is not an API key. The Render service allows the production Vercel origin
+and Vercel preview origins through CORS.
 
-1. In Render, create a new **Blueprint** from this GitHub repository and allow
-   it to create the `optilexis-ai-api` web service.
-2. When prompted, enter the Gemini key as the secret `GEMINI_API_KEY` service
-   environment variable. Do not add it to Vercel's frontend environment.
-3. Wait for the Render deployment to finish, then verify
-   `https://<your-render-service>.onrender.com/health` returns
-   `{"status":"ok"}`.
-4. In Vercel, open the frontend project's **Settings → Environment Variables**
-   and set `VITE_API_BASE_URL` to `https://<your-render-service>.onrender.com`
-   for Production (and Preview if desired). This is a public backend URL, not
-   a secret.
-5. Redeploy the Vercel frontend so Vite includes the new build-time variable.
-   Refresh the site and confirm it reports **Backend: Python PLY compiler + ML
-   (connected)**.
+When the Vercel page opens, it checks the backend health endpoint and displays
+**Backend: Python PLY compiler + ML (connected)** after a successful check. If
+Render is waking from an idle period, the page may briefly show a connecting
+or offline status; it retries automatically and changes to connected when the
+backend responds. Render free instances can sleep, so an immediate connected
+status on every visit cannot be guaranteed on that plan. Use an always-on
+backend plan if a warm, continuously connected status is required.
 
-The backend Blueprint sets `FRONTEND_ORIGINS` to the screenshot's
-`https://cdcompiler.vercel.app` domain and also permits Vercel preview domains.
-If your production Vercel domain differs, update `FRONTEND_ORIGINS` in the
-Render service environment and redeploy the backend. Render's free service may
-sleep when idle, so its first health check can take time; the frontend retries
-backend detection automatically and will switch back to live mode once the API
-wakes up.
+The deployment configuration is maintained in [`render.yaml`](./render.yaml).
+If replacing the backend, update `VITE_API_BASE_URL` in Vercel's Production
+environment and redeploy the frontend. If using a different Vercel domain,
+update `FRONTEND_ORIGINS` in Render and redeploy the backend.
 
-To enable Gemini-backed assistance, copy `backend/.env.example` to
-`backend/.env` and set `GEMINI_API_KEY` to a valid key. The optional
-`GEMINI_MODEL` setting defaults to `gemini-2.5-flash`. Do not commit `.env`
-files or API keys. If no key is configured, the assistance endpoints use
-deterministic fallback responses. Check connectivity with
-`python check_gemini.py` from `backend/`.
+Gemini is optional. To enable Gemini-backed assistance in production, configure
+`GEMINI_API_KEY` as a **secret environment variable on the Render backend
+service**; optionally set `GEMINI_MODEL` there (defaults to
+`gemini-2.5-flash`). Do not add the key to Vercel, any `VITE_` variable, source
+code, or documentation. No API key is included in this repository. For local
+development, put the key in the ignored `backend/.env` file based on
+`backend/.env.example`; never commit that file. With no key configured, the
+assistance routes use deterministic fallback responses. Check connectivity
+locally with `python check_gemini.py` from `backend/`.
 
 The checked-in advisory model artifacts are ready for local use. To regenerate
 the reproducible compiler-derived datasets and model artifacts from `backend/`:
