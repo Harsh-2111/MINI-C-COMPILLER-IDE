@@ -110,6 +110,9 @@ async def explain_error_with_source(
     error_model = (
         error if isinstance(error, CompileError) else CompileError.model_validate(error)
     )
+    if _is_int_function_returning_void(error_model):
+        return _fallback_explanation(code, error_model), False
+
     response = await _request_json(
         _explanation_prompt(code, error_model),
         ExplanationResponse,
@@ -180,7 +183,14 @@ def _fallback_explanation(code: str, error: CompileError) -> ExplanationResponse
     fix = "Review the reported line and correct the invalid construct."
     fixed_code = code
 
-    if error.phase == "lexical" and "Illegal character" in message:
+    if _is_int_function_returning_void(error):
+        explanation = (
+            "This function is declared to return int, but this return statement "
+            "does not return a value."
+        )
+        fix = "Return an integer value from the function."
+        fixed_code = _return_zero(code, error.line)
+    elif error.phase == "lexical" and "Illegal character" in message:
         bad_character = message.partition("'")[2].partition("'")[0]
         explanation = f"The lexer does not recognize the character {bad_character!r}."
         fix = f"Remove {bad_character!r} or replace it with a valid language token."
@@ -220,6 +230,32 @@ def _fallback_explanation(code: str, error: CompileError) -> ExplanationResponse
         fix=fix,
         fixed_code=fixed_code,
     )
+
+
+def _is_int_function_returning_void(error: CompileError) -> bool:
+    return (
+        error.phase == "semantic"
+        and re.search(
+            r"returns ['\"]int['\"] but got ['\"]void['\"]",
+            error.message,
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def _return_zero(code: str, line_number: int) -> str:
+    lines = code.splitlines()
+    index = line_number - 1
+    if not 0 <= index < len(lines):
+        return code
+
+    line = lines[index]
+    match = re.match(r"^(\s*)return\s*;(\s*(?://.*)?)$", line)
+    if not match:
+        return code
+    lines[index] = f"{match.group(1)}return 0;{match.group(2)}"
+    return "\n".join(lines)
 
 
 def _quote_printf_argument(code: str, line_number: int) -> str:

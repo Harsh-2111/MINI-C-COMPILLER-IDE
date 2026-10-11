@@ -131,3 +131,46 @@ def test_unquoted_printf_fallback_suggests_and_applies_string_quotes():
         'printf("Try clicking the Run button.");',
     )
     assert "quoted string literal" in response.explanation
+
+
+def test_int_function_void_return_fallback_applies_integer_return():
+    source = 'int main(){\nprintf("Hello world");\nreturn ;\n}'
+    error = CompileError(
+        phase="semantic",
+        line=3,
+        message="Type mismatch: function 'main' returns 'int' but got 'void'",
+    )
+
+    response = _fallback_explanation(source, error)
+
+    assert response.fixed_code == (
+        'int main(){\nprintf("Hello world");\nreturn 0;\n}'
+    )
+    assert "does not return a value" in response.explanation
+    assert "Return an integer value" in response.fix
+
+
+def test_int_function_void_return_uses_deterministic_fix_instead_of_bad_gemini(
+    monkeypatch,
+):
+    import ai
+
+    source = "int main() {\n  return ;\n}"
+    error = {
+        "phase": "semantic",
+        "line": 2,
+        "message": "Type mismatch: function 'main' returns 'int' but got 'void'",
+    }
+    monkeypatch.setenv("GEMINI_API_KEY", "mock-key")
+    monkeypatch.setattr(
+        ai,
+        "_request_json",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("use deterministic fix for known return mismatch")
+        ),
+    )
+
+    response, gemini_used = asyncio.run(ai.explain_error_with_source(source, error))
+
+    assert gemini_used is False
+    assert response.fixed_code == "int main() {\n  return 0;\n}"

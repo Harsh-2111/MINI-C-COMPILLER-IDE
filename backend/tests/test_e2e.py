@@ -160,6 +160,33 @@ def test_unquoted_printf_text_gets_a_targeted_syntax_diagnostic():
     ]
 
 
+def test_int_main_with_empty_return_gets_valid_explanation_fix():
+    code = 'int main() {\nprintf("Hello world");\nreturn ;\n}'
+    compile_result = client.post("/compile", json={"code": code}).json()
+    error = next(
+        error
+        for error in compile_result["errors"]
+        if "returns 'int' but got 'void'" in error["message"]
+    )
+
+    response = client.post(
+        "/explain",
+        json={"code": code, "error": error},
+    )
+
+    assert response.status_code == 200
+    explanation = response.json()
+    assert explanation["fixed_code"] == (
+        'int main() {\nprintf("Hello world");\nreturn 0;\n}'
+    )
+
+    fixed_compile = client.post(
+        "/compile",
+        json={"code": explanation["fixed_code"]},
+    ).json()
+    assert fixed_compile["errors"] == []
+
+
 def test_non_c_source_is_rejected_with_compiler_diagnostics():
     response = client.post(
         "/compile",

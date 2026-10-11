@@ -829,21 +829,31 @@ export function generateMockExplainResponse(req: ExplainRequest): ExplainRespons
       explanation = `Identifier '${identifier}' is used without a declaration on line ${error.line}.`;
       fix = `Replace the undeclared '${identifier}' reference on line ${error.line} with a valid value or declare it first.`;
     } else if (/type mismatch/i.test(error.message)) {
-      const returnMismatch = /returns ['"]([^'"]+)['"] but got ['"]([^'"]+)['"]/i.test(error.message);
-      if (/^\s*return\b/.test(sourceLine) || returnMismatch) {
-        fixedLine = sourceLine.replace(
-          /^(\s*return\s+).+?(\s*;\s*(?:\/\/.*)?)$/,
-          (_match, prefix: string, suffix: string) => `${prefix}0${suffix}`
-        );
-      } else {
-        const assignmentStart = sourceLine.indexOf('=');
-        const semicolon = sourceLine.indexOf(';', assignmentStart + 1);
-        if (assignmentStart >= 0 && semicolon > assignmentStart) {
-          fixedLine = `${sourceLine.slice(0, assignmentStart + 1)} 0${sourceLine.slice(semicolon)}`;
+      const returnsIntVoid = /returns ['"]int['"] but got ['"]void['"]/i.test(error.message);
+      if (returnsIntVoid) {
+        const emptyReturn = sourceLine.match(/^(\s*)return\s*;(\s*(?:\/\/.*)?)$/);
+        if (emptyReturn) {
+          fixedLine = `${emptyReturn[1]}return 0;${emptyReturn[2]}`;
+          explanation = `The function returns int, so the return statement on line ${error.line} needs an integer value.`;
+          fix = `Return an integer value, such as 0, on line ${error.line}.`;
         }
+      } else {
+        const returnMismatch = /returns ['"]([^'"]+)['"] but got ['"]([^'"]+)['"]/i.test(error.message);
+        if (/^\s*return\b/.test(sourceLine) || returnMismatch) {
+          fixedLine = sourceLine.replace(
+            /^(\s*return\s+).+?(\s*;\s*(?:\/\/.*)?)$/,
+            (_match, prefix: string, suffix: string) => `${prefix}0${suffix}`
+          );
+        } else {
+          const assignmentStart = sourceLine.indexOf('=');
+          const semicolon = sourceLine.indexOf(';', assignmentStart + 1);
+          if (assignmentStart >= 0 && semicolon > assignmentStart) {
+            fixedLine = `${sourceLine.slice(0, assignmentStart + 1)} 0${sourceLine.slice(semicolon)}`;
+          }
+        }
+        explanation = `The value on line ${error.line} has a type incompatible with the expected type.`;
+        fix = `Use a value compatible with the expected type on line ${error.line}.`;
       }
-      explanation = `The value on line ${error.line} has a type incompatible with the expected type.`;
-      fix = `Use a value compatible with the expected type on line ${error.line}.`;
     }
   }
 
