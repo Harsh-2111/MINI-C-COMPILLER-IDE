@@ -45,6 +45,8 @@ export interface ExplainResponse {
   explanation: string;
   fix: string;
   fixed_code: string;
+  fix_verified?: boolean;
+  remaining_errors?: number;
   ml_category?: string | null;
   ml_confidence?: number | null;
   source?: 'gemini+ml' | 'ml' | 'rule-based';

@@ -116,6 +116,9 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
         {filteredErrors.map((error, index) => {
           const explanationData = explanations[index];
           const isExplaining = explainingIndex === index;
+          const hasVerifiedFix =
+            explanationData?.fix_verified === true &&
+            explanationData.fixed_code !== code;
 
           return (
             <div
@@ -169,25 +172,39 @@ export const ErrorsPanel: React.FC<ErrorsPanelProps> = ({
                       <span>Diagnosis</span>
                     </div>
 
-                    <button
-                      onClick={() => handleApply(index, explanationData.fixed_code)}
-                      className="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700"
-                    >
-                      <Wrench className="w-3 h-3" />
-                      <span>Apply Fix to Code</span>
-                    </button>
+                    {hasVerifiedFix && (
+                      <button
+                        onClick={() => handleApply(index, explanationData.fixed_code)}
+                        className="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700"
+                      >
+                        <Wrench className="w-3 h-3" />
+                        <span>Apply Fix to Code</span>
+                      </button>
+                    )}
                   </div>
 
                   <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-[11.5px]">
                     {explanationData.explanation}
                   </p>
+                  {explanationData.fix_verified !== true && (
+                    <p className="text-amber-700 dark:text-amber-400 text-[11px]">
+                      No safe code change was verified. The source has not been changed.
+                    </p>
+                  )}
+                  {explanationData.fix_verified === true &&
+                    (explanationData.remaining_errors ?? 0) > 0 && (
+                      <p className="text-amber-700 dark:text-amber-400 text-[11px]">
+                        This verified fix resolves some diagnostics;{' '}
+                        {explanationData.remaining_errors} remain after applying it.
+                      </p>
+                    )}
 
                   <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800 space-y-1.5 font-mono text-[11px]">
                     <div className="text-slate-700 dark:text-slate-300 font-sans font-medium">
                       Fix: {explanationData.fix}
                     </div>
 
-                    {explanationData.fixed_code && (
+                    {hasVerifiedFix && (
                       <pre className="p-2 bg-slate-900 text-slate-200 rounded overflow-x-auto max-h-32 text-[10.5px]">
                         {explanationData.fixed_code}
                       </pre>

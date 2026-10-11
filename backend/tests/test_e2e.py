@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from main import app
+from main import ai, app
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -85,6 +85,8 @@ def test_all_seven_samples_compile_through_pipeline_and_ai_routes():
         assert explain_response.status_code == 200, filename
         explanation = explain_response.json()
         assert {"explanation", "fix", "fixed_code"} <= set(explanation)
+        assert isinstance(explanation["fix_verified"], bool)
+        assert isinstance(explanation["remaining_errors"], int)
         assert explanation["explanation"]
         assert explanation["fix"]
 
@@ -176,6 +178,8 @@ def test_int_main_with_empty_return_gets_valid_explanation_fix():
 
     assert response.status_code == 200
     explanation = response.json()
+    assert explanation["fix_verified"] is True
+    assert explanation["remaining_errors"] == 0
     assert explanation["fixed_code"] == (
         'int main() {\nprintf("Hello world");\nreturn 0;\n}'
     )
@@ -185,6 +189,74 @@ def test_int_main_with_empty_return_gets_valid_explanation_fix():
         json={"code": explanation["fixed_code"]},
     ).json()
     assert fixed_compile["errors"] == []
+
+
+def test_explain_rejects_unchanged_suggestion_when_no_safe_fix_exists(monkeypatch):
+    code = "int main() {\n    return missing;\n}\n"
+
+    async def unchanged_suggestion(source, error):
+        return (
+            ai.ExplanationResponse(
+                explanation="The identifier is undeclared.",
+                fix="Declare it or correct its name.",
+                fixed_code=source,
+            ),
+            True,
+        )
+
+    monkeypatch.setattr(ai, "explain_error_with_source", unchanged_suggestion)
+    error = client.post("/compile", json={"code": code}).json()["errors"][0]
+
+    response = client.post("/explain", json={"code": code, "error": error})
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["fixed_code"] == code
+    assert result["fix_verified"] is False
+    assert result["remaining_errors"] == 1
+    assert "No safe change could be verified" in result["fix"]
+
+
+def test_explain_verifies_sequential_fixes_for_multiple_diagnostics(monkeypatch):
+    code = (
+        "int main() {\n"
+        "    printf(Hello first.);\n"
+        "    printf(Hello second.);\n"
+        "    return 0;\n"
+        "}\n"
+    )
+    calls = []
+
+    async def unchanged_suggestion(source, error):
+        calls.append(error.line)
+        return (
+            ai.ExplanationResponse(
+                explanation="The suggested change did not alter the source.",
+                fix="Review the diagnostic.",
+                fixed_code=source,
+            ),
+            True,
+        )
+
+    monkeypatch.setattr(ai, "explain_error_with_source", unchanged_suggestion)
+    errors = client.post("/compile", json={"code": code}).json()["errors"]
+
+    response = client.post(
+        "/explain",
+        json={"code": code, "error": errors[1]},
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["fix_verified"] is True
+    assert result["remaining_errors"] == 0
+    assert calls == [3, 2]
+    assert 'printf("Hello first.");' in result["fixed_code"]
+    assert 'printf("Hello second.");' in result["fixed_code"]
+    assert client.post(
+        "/compile",
+        json={"code": result["fixed_code"]},
+    ).json()["errors"] == []
 
 
 def test_non_c_source_is_rejected_with_compiler_diagnostics():

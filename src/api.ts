@@ -199,6 +199,7 @@ function generateMockCompileResponse(code: string): CompileResponse {
 
   const keywords = new Set(['int', 'float', 'bool', 'void', 'char', 'if', 'else', 'while', 'for', 'return', 'true', 'false']);
   let currentScope = 'global';
+  let currentFunctionReturnType: string | null = null;
   let offsetCounter = 0;
   const knownSymbols = new Map<string, string>(); // name -> type
 
@@ -293,6 +294,7 @@ function generateMockCompileResponse(code: string): CompileResponse {
     // Function parameter declarations
     const fnMatch = trimmed.match(/(int|float|bool|void)\s+([a-zA-Z_]\w*)\s*\((.*?)\)/);
     if (fnMatch) {
+      currentFunctionReturnType = fnMatch[1];
       const fnName = fnMatch[2];
       const params = fnMatch[3];
       symbols.push({
@@ -319,6 +321,18 @@ function generateMockCompileResponse(code: string): CompileResponse {
           }
         });
       }
+    }
+
+    if (
+      currentFunctionReturnType &&
+      currentFunctionReturnType !== 'void' &&
+      /^\s*return\s*;\s*(?:\/\/.*)?$/.test(lineText)
+    ) {
+      errors.push({
+        phase: 'semantic',
+        line: lineNum,
+        message: `Type mismatch: function '${currentScope.replace(/\(\)$/, '')}' returns '${currentFunctionReturnType}' but got 'void'`,
+      });
     }
 
     // Variable declarations: (int|float|bool)\s+name ...
@@ -780,6 +794,97 @@ function generateTacFromCode(code: string): { tac: string[]; optimized_tac: stri
 }
 
 export function generateMockExplainResponse(req: ExplainRequest): ExplainResponse {
+  let currentCode = req.code;
+  const explanations: string[] = [];
+  const fixes: string[] = [];
+  let remainingErrors = generateMockCompileResponse(currentCode).errors;
+  let acceptedFixes = 0;
+  const seenCode = new Set([currentCode]);
+
+  for (let attempt = 0; attempt < 8 && remainingErrors.length > 0; attempt += 1) {
+    const targetError =
+      attempt === 0 &&
+      remainingErrors.some(
+        (error) =>
+          error.phase === req.error.phase &&
+          error.line === req.error.line &&
+          error.message === req.error.message
+      )
+        ? req.error
+        : remainingErrors[0];
+    const suggestion = generateMockSingleExplainResponse({
+      code: currentCode,
+      error: targetError,
+    });
+    const candidateCode = suggestion.fixed_code;
+    if (!candidateCode || candidateCode === currentCode || seenCode.has(candidateCode)) {
+      if (acceptedFixes === 0) explanations.push(suggestion.explanation);
+      break;
+    }
+
+    const candidateErrors = generateMockCompileResponse(candidateCode).errors;
+    if (!doesSuggestionImproveErrors(remainingErrors, candidateErrors, targetError)) {
+      if (acceptedFixes === 0) explanations.push(suggestion.explanation);
+      break;
+    }
+
+    currentCode = candidateCode;
+    seenCode.add(currentCode);
+    remainingErrors = candidateErrors;
+    acceptedFixes += 1;
+    explanations.push(suggestion.explanation);
+    fixes.push(suggestion.fix);
+  }
+
+  const fixVerified = acceptedFixes > 0;
+  let explanation = explanations.join(' ');
+  if (fixVerified) {
+    explanation += remainingErrors.length > 0
+      ? ` The verified changes resolve ${acceptedFixes} diagnostic(s); ${remainingErrors.length} remain.`
+      : ' The compiler verifies that all diagnostics are resolved.';
+  } else {
+    explanation = `${explanation} No safe code change could be verified, so the source was not changed.`.trim();
+  }
+
+  return {
+    explanation,
+    fix: fixVerified ? fixes.join(' ') : 'Correct the diagnostic and compile again.',
+    fixed_code: fixVerified ? currentCode : req.code,
+    fix_verified: fixVerified,
+    remaining_errors: remainingErrors.length,
+    ml_category: null,
+    ml_confidence: null,
+    source: 'rule-based',
+  };
+}
+
+function doesSuggestionImproveErrors(
+  before: CompilerError[],
+  after: CompilerError[],
+  target: CompilerError
+): boolean {
+  if (after.length >= before.length) return false;
+  const signature = (error: CompilerError) => `${error.phase}\u0000${error.message}`;
+  const beforeCounts = new Map<string, number>();
+  const afterCounts = new Map<string, number>();
+  before.forEach((error) => {
+    const key = signature(error);
+    beforeCounts.set(key, (beforeCounts.get(key) ?? 0) + 1);
+  });
+  after.forEach((error) => {
+    const key = signature(error);
+    afterCounts.set(key, (afterCounts.get(key) ?? 0) + 1);
+  });
+  const targetKey = signature(target);
+  return (
+    (beforeCounts.get(targetKey) ?? 0) > (afterCounts.get(targetKey) ?? 0) &&
+    [...afterCounts].every(
+      ([key, count]) => count <= (beforeCounts.get(key) ?? 0)
+    )
+  );
+}
+
+function generateMockSingleExplainResponse(req: ExplainRequest): ExplainResponse {
   const { error, code } = req;
   const lines = code.split('\n');
   const lineIndex = Math.max(0, Math.min(lines.length - 1, (error.line || 1) - 1));

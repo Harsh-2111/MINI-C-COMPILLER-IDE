@@ -41,7 +41,7 @@ export const ExplainModal: React.FC<ExplainModalProps> = ({
   };
 
   const handleApply = () => {
-    if (explanation?.fixed_code) {
+    if (explanation?.fix_verified && explanation.fixed_code) {
       onApplyFix(explanation.fixed_code);
       setApplied(true);
       setTimeout(() => {
@@ -93,6 +93,19 @@ export const ExplainModal: React.FC<ExplainModalProps> = ({
                 category={explanation.ml_category}
                 confidence={explanation.ml_confidence}
               />
+              {explanation.fix_verified !== true &&
+                (explanation.remaining_errors ?? 0) > 0 && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    No safe code change was verified, so the source has not been changed.
+                  </p>
+                )}
+              {explanation.fix_verified === true &&
+                (explanation.remaining_errors ?? 0) > 0 && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    This verified fix resolves some diagnostics;{' '}
+                    {explanation.remaining_errors} remain after applying it.
+                  </p>
+                )}
               {error && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/80 rounded-lg flex items-start gap-2 text-rose-900 dark:text-rose-300">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -126,7 +139,7 @@ export const ExplainModal: React.FC<ExplainModalProps> = ({
               </div>
 
               {/* Code preview */}
-              {explanation.fixed_code && (
+              {explanation.fixed_code && explanation.fix_verified && (
                 <div>
                   <div className="flex items-center justify-between mb-1 text-[11px]">
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
@@ -158,7 +171,7 @@ export const ExplainModal: React.FC<ExplainModalProps> = ({
             Close
           </button>
 
-          {explanation?.fixed_code && (
+          {explanation?.fixed_code && explanation.fix_verified && (
             <button
               onClick={handleApply}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded transition-colors cursor-pointer ${

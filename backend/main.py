@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections import Counter
 from typing import Literal
 
 from fastapi import FastAPI
@@ -126,12 +127,16 @@ async def ml_status() -> dict:
 
 @app.post("/compile", response_model=CompileResponse)
 async def compile_source(request: CompileRequest) -> CompileResponse:
+    return _compile_source(request.code)
+
+
+def _compile_source(code: str) -> CompileResponse:
     tokens: list[dict] = []
     try:
-        tokens, _ = tokenize(request.code)
-        parsed = parse(request.code)
+        tokens, _ = tokenize(code)
+        parsed = parse(code)
         errors = parsed["errors"]
-        printf_diagnostics = _unquoted_printf_diagnostics(request.code)
+        printf_diagnostics = _unquoted_printf_diagnostics(code)
         if printf_diagnostics:
             printf_lines = {error["line"] for error in printf_diagnostics}
             errors = [
@@ -182,15 +187,108 @@ async def compile_source(request: CompileRequest) -> CompileResponse:
 
 @app.post("/explain")
 async def explain(request: ExplainRequest) -> dict:
-    response, gemini_used = await ai.explain_error_with_source(
-        request.code, request.error
-    )
+    current_code = request.code
+    explanations: list[str] = []
+    fixes: list[str] = []
+    gemini_used = False
+    accepted_fix_count = 0
+    seen_code = {current_code}
+
+    for _ in range(8):
+        current_errors = _compile_source(current_code).errors
+        if not current_errors:
+            break
+
+        current_error = (
+            next(
+                (
+                    error
+                    for error in current_errors
+                    if (
+                        error.phase,
+                        error.line,
+                        error.message,
+                    )
+                    == (
+                        request.error.phase,
+                        request.error.line,
+                        request.error.message,
+                    )
+                ),
+                current_errors[0],
+            )
+            if accepted_fix_count == 0
+            else current_errors[0]
+        )
+        suggested, suggestion_used_gemini = await ai.explain_error_with_source(
+            current_code, ai.CompileError.model_validate(current_error.model_dump())
+        )
+        candidate_code = suggested.fixed_code
+        candidate_errors = (
+            _compile_source(candidate_code).errors
+            if candidate_code != current_code and candidate_code not in seen_code
+            else current_errors
+        )
+
+        if not _fix_improves_diagnostics(current_errors, candidate_errors, current_error):
+            suggested = ai._fallback_explanation(current_code, current_error)
+            candidate_code = suggested.fixed_code
+            candidate_errors = (
+                _compile_source(candidate_code).errors
+                if candidate_code != current_code and candidate_code not in seen_code
+                else current_errors
+            )
+            suggestion_used_gemini = False
+
+        if not _fix_improves_diagnostics(current_errors, candidate_errors, current_error):
+            if accepted_fix_count == 0:
+                explanations.append(suggested.explanation)
+                fixes.append(
+                    "No safe change could be verified against the compiler. "
+                    "Correct this diagnostic and compile again."
+                )
+            break
+
+        current_code = candidate_code
+        seen_code.add(current_code)
+        accepted_fix_count += 1
+        gemini_used = gemini_used or suggestion_used_gemini
+        explanations.append(suggested.explanation)
+        fixes.append(suggested.fix)
+
+    remaining_errors = _compile_source(current_code).errors
+    if accepted_fix_count:
+        explanation = " ".join(explanations)
+        if remaining_errors:
+            explanation += (
+                f" The verified changes resolve {accepted_fix_count} diagnostic(s); "
+                f"{len(remaining_errors)} remain."
+            )
+        else:
+            explanation += " The compiler verifies that all diagnostics are resolved."
+        response = ai.ExplanationResponse(
+            explanation=explanation,
+            fix=" ".join(fixes),
+            fixed_code=current_code,
+        )
+    else:
+        response = ai.ExplanationResponse(
+            explanation=" ".join(explanations)
+            or "No compiler diagnostics were found for this source.",
+            fix=fixes[0]
+            if fixes
+            else "No source change is needed.",
+            fixed_code=request.code,
+        )
+
     prediction = ml_advisor.predict_error(request.error.model_dump())
     result = response.model_dump()
     result.update(
         ml_category=prediction["category"] if prediction else None,
         ml_confidence=prediction["confidence"] if prediction else None,
         source=_advisory_source(gemini_used, prediction is not None),
+        fix_verified=accepted_fix_count > 0,
+        remaining_errors=len(remaining_errors),
     )
     return result
 
@@ -244,3 +342,23 @@ def _unquoted_printf_diagnostics(code: str) -> list[dict[str, str | int]]:
                 }
             )
     return diagnostics
+
+
+def _fix_improves_diagnostics(
+    before: list[ErrorResponse],
+    after: list[ErrorResponse],
+    targeted_error: ai.CompileError,
+) -> bool:
+    if not before or len(after) >= len(before):
+        return False
+
+    before_signatures = Counter((error.phase, error.message) for error in before)
+    after_signatures = Counter((error.phase, error.message) for error in after)
+    target_signature = (targeted_error.phase, targeted_error.message)
+    return (
+        before_signatures[target_signature] > after_signatures[target_signature]
+        and all(
+            after_signatures[signature] <= before_signatures[signature]
+            for signature in after_signatures
+        )
+    )
