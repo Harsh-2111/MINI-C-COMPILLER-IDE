@@ -5,6 +5,7 @@ import ply.lex as lex
 tokens = (
     "IDENTIFIER",
     "NUMBER",
+    "STRING",
     "OPERATOR",
     "PUNCTUATION",
     "INT",
@@ -95,6 +96,12 @@ def t_IDENTIFIER(token):
 def t_NUMBER(token):
     r"(?:\d+\.\d+|\d+)"
     token.category = "number"
+    return token
+
+
+def t_STRING(token):
+    r'"(?:\\.|[^"\\])*"'
+    token.category = "string"
     return token
 
 

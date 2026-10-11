@@ -96,6 +96,22 @@ def test_floating_point_and_signed_integer_tokens():
     ]
 
 
+def test_string_literals_are_tokenized_as_single_c_strings():
+    tokens, errors = tokenize('printf("Try clicking the Run button.");')
+
+    assert errors == []
+    assert tokens[0] == {
+        "type": "identifier",
+        "value": "printf",
+        "line": 1,
+    }
+    assert {
+        "type": "string",
+        "value": '"Try clicking the Run button."',
+        "line": 1,
+    } in tokens
+
+
 def test_illegal_characters_are_reported_and_lexing_continues():
     tokens, errors = tokenize("int x @ 1;\nfloat y # 2;")
 

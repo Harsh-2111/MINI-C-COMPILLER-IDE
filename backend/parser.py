@@ -265,6 +265,10 @@ class _ParserGrammar:
         "expression : NUMBER"
         production[0] = Literal(production[1], line=production.lineno(1))
 
+    def p_expression_string(self, production):
+        "expression : STRING"
+        production[0] = Literal(production[1], line=production.lineno(1))
+
     def p_expression_boolean(self, production):
         """expression : TRUE
                       | FALSE"""

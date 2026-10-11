@@ -373,6 +373,37 @@ function generateMockCompileResponse(code: string): CompileResponse {
     }
   });
 
+  const uncommentedCode = code
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\r\n]*/g, ' ');
+  const functionDefinitions = [
+    ...uncommentedCode.matchAll(
+      /\b(int|float|bool|void)\s+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g
+    ),
+  ];
+  const declaredFunctions = new Set<string>();
+  for (const definition of functionDefinitions) {
+    const name = definition[2];
+    if (declaredFunctions.has(name)) {
+      const line = uncommentedCode.slice(0, definition.index ?? 0).split('\n').length;
+      errors.push({
+        phase: 'semantic',
+        line,
+        message: `Redeclaration of function '${name}'`,
+      });
+    } else {
+      declaredFunctions.add(name);
+    }
+  }
+
+  if (errors.length === 0 && functionDefinitions.length === 0) {
+    errors.push({
+      phase: 'semantic',
+      line: 1,
+      message: "Program must define 'int main()'",
+    });
+  }
+
   // Synthesize symbols for known functions if not populated
   if (symbols.length === 0) {
     symbols.push({ name: 'main', type: 'int()', scope: 'global', offset: 0, line: 1 });

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -221,6 +222,8 @@ class SemanticAnalyzer:
 
         if kind == "Literal":
             value = _literal_value(node)
+            if value.startswith('"') and value.endswith('"'):
+                return "string"
             if value in {"true", "false"}:
                 return "bool"
             return "float" if "." in value else "int"
@@ -230,6 +233,8 @@ class SemanticAnalyzer:
 
         if kind == "CallExpr":
             name = _call_name(node)
+            if name == "printf":
+                return self._printf_type(children, line)
             signature = self.global_scope.get(name)
             args = [self._expression_type(argument) for argument in children]
             if signature is None:
@@ -274,6 +279,44 @@ class SemanticAnalyzer:
             operator = _operator(node)
             return self._binary_type(operator, left_type, right_type, line)
         return "error"
+
+    def _printf_type(self, arguments: list[dict[str, Any]], line: int) -> str:
+        if not arguments:
+            self._error(line, "printf expects a format string as its first argument")
+            return "int"
+
+        format_node = arguments[0]
+        format_type = self._expression_type(format_node)
+        if format_type != "string" or format_node.get("type") != "Literal":
+            self._error(line, "printf expects a string literal as its first argument")
+            for argument in arguments[1:]:
+                self._expression_type(argument)
+            return "int"
+
+        format_string = _literal_value(format_node)[1:-1].replace("%%", "")
+        specifiers = re.findall(r"%(?:[diufcs])", format_string)
+        values = arguments[1:]
+        if len(specifiers) != len(values):
+            self._error(
+                line,
+                f"printf format expects {len(specifiers)} value(s) but got {len(values)}",
+            )
+
+        for specifier, argument in zip(specifiers, values):
+            argument_type = self._expression_type(argument)
+            expected_types = {"%s": {"string"}, "%c": {"int"}}
+            if specifier in expected_types:
+                compatible = argument_type in expected_types[specifier]
+            else:
+                compatible = argument_type in _NUMERIC_TYPES
+            if not compatible and argument_type != "error":
+                self._error(
+                    _line(argument),
+                    f"printf format '{specifier}' is incompatible with '{argument_type}'",
+                )
+        for argument in values[len(specifiers) :]:
+            self._expression_type(argument)
+        return "int"
 
     def _binary_type(
         self, operator: str, left: str, right: str, line: int

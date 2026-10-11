@@ -4,7 +4,9 @@ import time
 from types import SimpleNamespace
 
 from ai import (
+    CompileError,
     ExplanationResponse,
+    _fallback_explanation,
     explain_error_with_source,
 )
 
@@ -105,3 +107,27 @@ def test_missing_gemini_key_uses_deterministic_fallback(monkeypatch):
 
     assert gemini_used is False
     assert "missing" in response.explanation
+
+
+def test_unquoted_printf_fallback_suggests_and_applies_string_quotes():
+    source = (
+        "int main() {\n"
+        "    printf(Try clicking the Run button.);\n"
+        "    return 0;\n"
+        "}"
+    )
+
+    response = _fallback_explanation(
+        source,
+        CompileError(
+            phase="syntax",
+            line=2,
+            message="Expected a quoted string literal as printf's first argument",
+        ),
+    )
+
+    assert response.fixed_code == source.replace(
+        "printf(Try clicking the Run button.);",
+        'printf("Try clicking the Run button.");',
+    )
+    assert "quoted string literal" in response.explanation

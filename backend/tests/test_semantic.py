@@ -85,6 +85,24 @@ def test_undeclared_identifier_and_undefined_function_are_reported():
     assert all(error["phase"] == "semantic" for error in result["errors"])
 
 
+def test_printf_accepts_string_formats_and_checks_format_arguments():
+    valid = analyze_source(
+        'int main() { printf("value=%d", 7); return 0; }'
+    )
+    invalid = analyze_source(
+        'int main() { printf("%d", true); return 0; }'
+    )
+
+    assert valid["errors"] == []
+    assert invalid["errors"] == [
+        {
+            "phase": "semantic",
+            "line": 1,
+            "message": "printf format '%d' is incompatible with 'bool'",
+        }
+    ]
+
+
 def test_scope_shadowing_allowed_but_same_scope_redeclaration_rejected():
     result = analyze_source(
         "int main() { int x = 1; { float x = 2.0; } int x = 3; return x; }"

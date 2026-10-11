@@ -140,6 +140,7 @@ export default function App() {
   const [timeTakenMs, setTimeTakenMs] = useState<number | null>(null);
   const [compileData, setCompileData] = useState<CompileResponse | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [outputFailure, setOutputFailure] = useState<string | null>(null);
 
   // Editor cursor & selection tracking
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
@@ -298,7 +299,9 @@ export default function App() {
   // Compile Handler
   const handleCompile = useCallback(async (sourceCode = code) => {
     setIsCompiling(true);
+    setCompileData(null);
     setExecutionResult(null);
+    setOutputFailure(null);
     const startTime = performance.now();
     const filename = activeFile ? activeFile.filename : 'main.c';
 
@@ -334,8 +337,7 @@ export default function App() {
         });
         addConsoleLog(`Compilation finished with ${result.errors.length} error(s) in ${elapsed.toFixed(0)}ms`, 'warn');
         addToast(`Compilation flagged ${result.errors.length} diagnostic error(s)`, 'error');
-        // Switch to Errors tab on errors as requested
-        setActiveTab('errors');
+        setActiveTab('output');
       } else {
         setCompileStatus('success');
         const programResult = runProgram(sourceCode);
@@ -353,6 +355,8 @@ export default function App() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setCompileStatus('error');
+      setOutputFailure(msg);
+      setActiveTab('output');
       addConsoleLog(`Build failure: ${msg}`, 'error');
       addToast(msg, 'error');
     } finally {
@@ -738,7 +742,14 @@ export default function App() {
 
           {/* Panel Body */}
           <div className="flex-1 overflow-hidden relative">
-            {activeTab === 'output' && <OutputPanel result={executionResult} />}
+            {activeTab === 'output' && (
+              <OutputPanel
+                result={executionResult}
+                errors={compileData?.errors ?? []}
+                failure={outputFailure}
+                isCompiling={isCompiling}
+              />
+            )}
 
             {activeTab === 'tokens' && (
               <TokensPanel tokens={tokens} onSelectLine={setSelectedLine} isLoading={isCompiling} />

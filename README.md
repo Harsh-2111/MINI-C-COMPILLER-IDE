@@ -157,7 +157,7 @@ predictions.
 
 ## Language support and limitations
 
-The project implements a teaching language inspired by C. The exact syntax and execution support are intentionally narrower than full C.
+The compiler accepts programs written in its supported C subset and reports lexical, syntax, and semantic diagnostics for invalid or unsupported input; source code in another language is not treated as a successful C program. The exact syntax and execution support are intentionally narrower than full C.
 
 | Area | Supported examples |
 | --- | --- |
@@ -166,9 +166,9 @@ The project implements a teaching language inspired by C. The exact syntax and e
 | Statements | Variable declarations, assignments, function calls, `return`, `if`/`else`, and `while` |
 | Functions | User-defined functions with typed parameters and return statements |
 | Preprocessor | Common `#include` lines are accepted by the compiler pipeline; included libraries are not actually linked |
-| Browser output | Basic `printf` string output and common `%d`, `%i`, `%u`, `%f`, `%c`, `%s`, and `%%` format specifiers |
+| Output | `printf` string literals and common `%d`, `%i`, `%u`, `%f`, `%c`, `%s`, and `%%` format specifiers |
 
-The browser interpreter enforces a 100,000-step execution limit and a maximum function-call depth of 100 to keep execution bounded. It is not a complete implementation of C's standard library or type system. Features such as pointers, structs, arrays, file and operating-system I/O, and native compilation are outside the current interpreter's scope. A program may compile in a compiler stage but still use a feature the browser interpreter cannot execute; runtime failures are reported separately from compile diagnostics.
+The Output panel always shows the latest compile diagnostics, build failure, or program result; detailed diagnostics and the Explain action remain available in the Errors tab. The browser interpreter enforces a 100,000-step execution limit and a maximum function-call depth of 100 to keep execution bounded. It is not a complete implementation of C's standard library or type system. Features such as pointers, structs, arrays, file and operating-system I/O, and native compilation are outside the current interpreter's scope. A program may compile in a compiler stage but still use a feature the browser interpreter cannot execute; runtime failures are reported separately from compile diagnostics.
 
 ## Technology
 

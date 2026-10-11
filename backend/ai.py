@@ -189,6 +189,12 @@ def _fallback_explanation(code: str, error: CompileError) -> ExplanationResponse
         explanation = "A statement is missing its terminating semicolon."
         fix = "Add a semicolon at the end of the statement on the reported line."
         fixed_code = _insert_semicolon(code, error.line)
+    elif error.phase == "syntax" and "quoted string literal" in message:
+        explanation = (
+            "The first argument to printf must be a quoted string literal."
+        )
+        fix = "Enclose the printf text in double quotes."
+        fixed_code = _quote_printf_argument(code, error.line)
     elif "Undeclared identifier" in message:
         name = message.partition("'")[2].partition("'")[0]
         explanation = f"The name {name!r} is used before it has been declared in this scope."
@@ -214,6 +220,21 @@ def _fallback_explanation(code: str, error: CompileError) -> ExplanationResponse
         fix=fix,
         fixed_code=fixed_code,
     )
+
+
+def _quote_printf_argument(code: str, line_number: int) -> str:
+    lines = code.splitlines()
+    index = line_number - 1
+    if not 0 <= index < len(lines):
+        return code
+
+    line = lines[index]
+    call = re.match(r'^(\s*printf\s*\()\s*(.*?)\s*(\)\s*;\s*(?://.*)?)$', line)
+    if not call or call.group(2).lstrip().startswith('"'):
+        return code
+    contents = call.group(2).strip().replace("\\", "\\\\").replace('"', '\\"')
+    lines[index] = f'{call.group(1)}"{contents}"{call.group(3)}'
+    return "\n".join(lines)
 
 
 def _fallback_advice(tac: list[str], optimized_tac: list[str]) -> AdviceResponse:

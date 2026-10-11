@@ -96,6 +96,17 @@ def test_function_parameters_calls_and_return_values():
     ]
 
 
+def test_printf_string_literal_is_preserved_in_call_tac():
+    instructions = tac_for('int main() { printf("Hello, C!"); return 0; }')
+
+    assert instructions == [
+        "label main:",
+        'param "Hello, C!"',
+        "t1 = call printf, 1",
+        "return 0",
+    ]
+
+
 def test_fibonacci_loop_sample_generates_control_flow_and_values():
     instructions = tac_for(
         "int fib(int n) { int a = 0; int b = 1; int i = 0; "

@@ -113,3 +113,69 @@ def test_invalid_program_still_returns_compile_contract_without_server_error():
         error["phase"] in {"lexical", "syntax", "semantic"}
         for error in body["errors"]
     )
+
+
+def test_valid_c_printf_program_compiles_and_generates_tac():
+    response = client.post(
+        "/compile",
+        json={
+            "code": (
+                '#include <stdio.h>\n'
+                'int main() {\n'
+                '    printf("Try clicking the Run button.");\n'
+                '    return 0;\n'
+                '}\n'
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["errors"] == []
+    assert any(token["type"] == "string" for token in result["tokens"])
+    assert 'param "Try clicking the Run button."' in result["tac"]
+    assert "t1 = call printf, 1" in result["tac"]
+
+
+def test_unquoted_printf_text_gets_a_targeted_syntax_diagnostic():
+    response = client.post(
+        "/compile",
+        json={
+            "code": (
+                "int main() {\n"
+                "    printf(Try clicking the Run button.);\n"
+                "    return 0;\n"
+                "}\n"
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["errors"] == [
+        {
+            "phase": "syntax",
+            "line": 2,
+            "message": "Expected a quoted string literal as printf's first argument",
+        }
+    ]
+
+
+def test_non_c_source_is_rejected_with_compiler_diagnostics():
+    response = client.post(
+        "/compile",
+        json={"code": 'print("not C")'},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["errors"]
+
+
+def test_empty_source_is_rejected_for_missing_main():
+    response = client.post("/compile", json={"code": ""})
+
+    assert response.status_code == 200
+    assert {
+        "phase": "semantic",
+        "line": 1,
+        "message": "Program must define 'int main()'",
+    } in response.json()["errors"]

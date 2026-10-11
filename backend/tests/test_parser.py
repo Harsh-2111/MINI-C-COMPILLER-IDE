@@ -47,6 +47,16 @@ def test_parses_assignment_loop_return_and_call_expression():
     assert statements[3]["children"] == []
 
 
+def test_parses_printf_string_literal():
+    result = parse('int main() { printf("Hello, C!"); return 0; }')
+
+    assert result["errors"] == []
+    call = result["ast"]["children"][0]["children"][0]["children"][0]["children"][0]
+    assert call["type"] == "CallExpr"
+    assert call["label"] == "Call: printf"
+    assert call["children"][0]["label"] == 'Literal: "Hello, C!"'
+
+
 def test_operator_precedence_and_left_associativity():
     result = parse("int f() { return 1 + 2 * 3 - 4 - 5; }")
     return_expr = result["ast"]["children"][0]["children"][0]["children"][0][

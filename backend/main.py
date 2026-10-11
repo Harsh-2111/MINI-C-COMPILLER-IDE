@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Literal
 
 from fastapi import FastAPI
@@ -130,6 +131,17 @@ async def compile_source(request: CompileRequest) -> CompileResponse:
         tokens, _ = tokenize(request.code)
         parsed = parse(request.code)
         errors = parsed["errors"]
+        printf_diagnostics = _unquoted_printf_diagnostics(request.code)
+        if printf_diagnostics:
+            printf_lines = {error["line"] for error in printf_diagnostics}
+            errors = [
+                *printf_diagnostics,
+                *(
+                    error
+                    for error in errors
+                    if error["line"] not in printf_lines
+                ),
+            ]
         ast = parsed["ast"]
         symbols: list[dict] = []
         tac: list[str] = []
@@ -211,3 +223,24 @@ def _advisory_source(gemini_used: bool, ml_used: bool) -> str:
     if ml_used:
         return "ml"
     return "rule-based"
+
+
+def _unquoted_printf_diagnostics(code: str) -> list[dict[str, str | int]]:
+    diagnostics = []
+    for line_number, source_line in enumerate(code.splitlines(), start=1):
+        code_part = source_line.split("//", 1)[0]
+        call = re.match(
+            r"^\s*printf\s*\(\s*(.*?)\s*\)\s*;\s*$",
+            code_part,
+        )
+        if call and not call.group(1).lstrip().startswith('"'):
+            diagnostics.append(
+                {
+                    "phase": "syntax",
+                    "line": line_number,
+                    "message": (
+                        "Expected a quoted string literal as printf's first argument"
+                    ),
+                }
+            )
+    return diagnostics
